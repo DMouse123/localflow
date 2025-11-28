@@ -562,6 +562,61 @@ async function runWorkflow(workflowId) {
         outputs = { item: loopItems[0], index: 0, results: loopItems }
         console.log(`     Loop: ${loopItems.length} items`)
         break
+      
+      case 'ai-agent':
+        const agentTask = inputs.task || inputs.input || ''
+        if (agentTask && model) {
+          console.log(`     Agent task: "${String(agentTask).substring(0, 50)}..."`)
+          
+          const maxSteps = config.maxSteps || 5
+          const enabledTools = (config.tools || 'calculator,datetime').split(',').map(t => t.trim())
+          const steps = []
+          
+          // Simple tools
+          const tools = {
+            calculator: (expr) => {
+              try {
+                return String(Function('"use strict"; return (' + expr.replace(/[^0-9+\-*/().sqrt,pow\s]/g, '') + ')')())
+              } catch { return 'Error' }
+            },
+            datetime: () => new Date().toLocaleString()
+          }
+          
+          const toolDescs = enabledTools.map(t => `- ${t}`).join('\n')
+          const agentSystemPrompt = `${config.systemPrompt || 'You are a helpful AI agent.'}\n\nTools:\n${toolDescs}\n\nFormat:\nTHOUGHT: reasoning\nACTION: tool_name\nINPUT: input\n\nOr when done:\nTHOUGHT: reasoning\nFINAL: answer`
+          
+          let agentPrompt = `Task: ${agentTask}`
+          let agentResult = ''
+          
+          for (let step = 0; step < maxSteps; step++) {
+            const response = await chatInternal(agentPrompt, agentSystemPrompt)
+            
+            const finalMatch = response.match(/FINAL:\s*(.+)/s)
+            if (finalMatch) {
+              agentResult = finalMatch[1].trim()
+              console.log(`     Final: ${agentResult.substring(0, 80)}...`)
+              break
+            }
+            
+            const actionMatch = response.match(/ACTION:\s*(\w+)/i)
+            const inputMatch = response.match(/INPUT:\s*(.+?)(?=THOUGHT:|ACTION:|FINAL:|$)/s)
+            
+            if (actionMatch && inputMatch && tools[actionMatch[1].toLowerCase()]) {
+              const toolName = actionMatch[1].toLowerCase()
+              const toolInput = inputMatch[1].trim()
+              const observation = tools[toolName](toolInput)
+              console.log(`     Tool ${toolName}: ${observation}`)
+              agentPrompt += `\nOBSERVATION: ${observation}\nContinue.`
+              steps.push({ action: toolName, input: toolInput, observation })
+            } else {
+              agentResult = response
+              break
+            }
+          }
+          
+          outputs = { result: agentResult || 'No result', steps }
+        }
+        break
     }
 
     nodeOutputs.set(node.id, outputs)

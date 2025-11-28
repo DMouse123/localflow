@@ -76,6 +76,13 @@ const NODE_CONFIGS: Record<string, { fields: FieldConfig[] }> = {
       { key: 'maxItems', label: 'Max Items (0=all)', type: 'number', default: 0, min: 0 },
     ],
   },
+  'ai-agent': {
+    fields: [
+      { key: 'systemPrompt', label: 'System Prompt', type: 'textarea', default: 'You are a helpful AI agent that can use tools to accomplish tasks.' },
+      { key: 'maxSteps', label: 'Max Steps', type: 'number', default: 5, min: 1, max: 20 },
+      { key: 'tools', label: 'Enabled Tools', type: 'text', placeholder: 'calculator,datetime', default: 'calculator,datetime' },
+    ],
+  },
 }
 
 interface FieldConfig {

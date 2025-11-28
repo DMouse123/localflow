@@ -469,6 +469,131 @@ const loopNode: NodeTypeDefinition = {
   },
 }
 
+// AI: Agent Node - ReAct loop with tools
+const aiAgent: NodeTypeDefinition = {
+  id: 'ai-agent',
+  name: 'AI Agent',
+  category: 'ai',
+  inputs: [
+    { id: 'task', name: 'Task', type: 'string' },
+  ],
+  outputs: [
+    { id: 'result', name: 'Result', type: 'string' },
+    { id: 'steps', name: 'Steps', type: 'any' },
+  ],
+  config: {
+    systemPrompt: { type: 'text', label: 'System Prompt', default: 'You are a helpful AI agent that can use tools to accomplish tasks.' },
+    maxSteps: { type: 'number', label: 'Max Steps', default: 5 },
+    tools: { type: 'text', label: 'Enabled Tools', default: 'calculator,datetime' },
+  },
+  execute: async (inputs, config, context) => {
+    const task = inputs.task || ''
+    if (!task) {
+      return { result: 'No task provided', steps: [] }
+    }
+
+    const maxSteps = config.maxSteps || 5
+    const enabledTools = (config.tools || 'calculator,datetime').split(',').map((t: string) => t.trim())
+    const steps: Array<{ thought: string; action?: string; observation?: string }> = []
+
+    // Available tools
+    const tools: Record<string, { description: string; execute: (input: string) => string }> = {
+      calculator: {
+        description: 'Evaluate a math expression. Input: math expression like "2 + 2" or "sqrt(16)"',
+        execute: (input: string) => {
+          try {
+            // Simple safe eval for math
+            const result = Function('"use strict"; return (' + input.replace(/[^0-9+\-*/().sqrt,pow\s]/g, '') + ')')()
+            return String(result)
+          } catch {
+            return 'Error: Invalid math expression'
+          }
+        }
+      },
+      datetime: {
+        description: 'Get current date and time. Input: ignored',
+        execute: () => new Date().toLocaleString()
+      },
+    }
+
+    // Build tool descriptions for prompt
+    const toolDescs = enabledTools
+      .filter(t => tools[t])
+      .map(t => `- ${t}: ${tools[t].description}`)
+      .join('\n')
+
+    const systemPrompt = `${config.systemPrompt}
+
+You have access to these tools:
+${toolDescs}
+
+To use a tool, respond in this EXACT format:
+THOUGHT: [your reasoning]
+ACTION: [tool_name]
+INPUT: [input for the tool]
+
+When you have the final answer, respond:
+THOUGHT: [your reasoning]
+FINAL: [your final answer]
+
+Always use THOUGHT before ACTION or FINAL.`
+
+    context.log(`Agent starting: "${task.substring(0, 50)}..."`)
+    let currentPrompt = `Task: ${task}`
+    let finalResult = ''
+
+    for (let step = 0; step < maxSteps; step++) {
+      context.log(`Agent step ${step + 1}/${maxSteps}`)
+      
+      const response = await context.llm.generateSync(currentPrompt, {
+        systemPrompt,
+        maxTokens: 256,
+        temperature: 0.3,
+      })
+
+      // Parse response
+      const thoughtMatch = response.match(/THOUGHT:\s*(.+?)(?=ACTION:|FINAL:|$)/s)
+      const actionMatch = response.match(/ACTION:\s*(\w+)/i)
+      const inputMatch = response.match(/INPUT:\s*(.+?)(?=THOUGHT:|ACTION:|FINAL:|$)/s)
+      const finalMatch = response.match(/FINAL:\s*(.+)/s)
+
+      const thought = thoughtMatch ? thoughtMatch[1].trim() : response.trim()
+      
+      if (finalMatch) {
+        finalResult = finalMatch[1].trim()
+        steps.push({ thought, observation: `Final answer: ${finalResult}` })
+        context.log(`Agent finished: ${finalResult.substring(0, 50)}...`)
+        break
+      }
+
+      if (actionMatch && inputMatch) {
+        const action = actionMatch[1].toLowerCase()
+        const toolInput = inputMatch[1].trim()
+        
+        if (tools[action] && enabledTools.includes(action)) {
+          const observation = tools[action].execute(toolInput)
+          steps.push({ thought, action: `${action}(${toolInput})`, observation })
+          context.log(`Tool ${action}: ${observation}`)
+          currentPrompt = `${currentPrompt}\n\nTHOUGHT: ${thought}\nACTION: ${action}\nINPUT: ${toolInput}\nOBSERVATION: ${observation}\n\nContinue with the task.`
+        } else {
+          steps.push({ thought, action: `${action} (unknown tool)`, observation: 'Tool not available' })
+          currentPrompt = `${currentPrompt}\n\nThe tool "${action}" is not available. Available tools: ${enabledTools.join(', ')}`
+        }
+      } else {
+        steps.push({ thought })
+        finalResult = thought
+        break
+      }
+    }
+
+    if (!finalResult) {
+      finalResult = 'Agent reached max steps without final answer'
+    }
+
+    return { result: finalResult, steps }
+  },
+}
+
 // ============ NODE REGISTRY ============
 
 export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
@@ -482,6 +607,7 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
   'file-write': fileWrite,
   'json-parse': jsonParse,
   'loop': loopNode,
+  'ai-agent': aiAgent,
 }
 
 export function getNodeType(typeId: string): NodeTypeDefinition | undefined {

@@ -125,20 +125,21 @@ git push
 - [x] Visual workflow canvas (drag/drop, connect, save/load)
 - [x] Local LLM integration (Llama 3.2 1B/3B)
 - [x] Node types: trigger, text-input, ai-chat, ai-transform, debug
+- [x] **NEW: HTTP Request node** (GET/POST/PUT/DELETE)
+- [x] **NEW: File Read node** (read local files)
+- [x] **NEW: File Write node** (write local files)  
+- [x] **NEW: JSON Parse node** (parse and extract JSON)
+- [x] **NEW: Loop node** (iterate over arrays)
 - [x] Workflow execution (CLI + GUI)
 - [x] Run button + Output panel
 - [x] Node configuration in Properties panel
-- [x] 5 pre-built templates
+- [x] 5+ pre-built templates
 - [x] AI Assistant (self-teaching chat)
 - [x] Claude Remote Control (real-time testing)
 - [x] App control scripts (start/stop/restart)
 - [x] Git repo on GitHub
 
 ### Not Started
-- [ ] HTTP Request node
-- [ ] File Read/Write nodes
-- [ ] Loop node
-- [ ] Filter/Condition node
 - [ ] AI Agent node (ReAct loop)
 - [ ] Undo/redo
 - [ ] Dark mode
