@@ -11,6 +11,8 @@ import {
   Blocks,
   LayoutTemplate,
   Globe,
+  FileInput,
+  FileOutput,
   type LucideIcon
 } from 'lucide-react'
 import ModelManager from './ModelManager'
@@ -44,6 +46,8 @@ const nodeCategories = {
     nodes: [
       { type: 'text-input', label: 'Text Input', icon: FileText, color: 'bg-gray-500', description: 'Static text value' },
       { type: 'http-request', label: 'HTTP Request', icon: Globe, color: 'bg-cyan-500', description: 'Make API calls' },
+      { type: 'file-read', label: 'File Read', icon: FileInput, color: 'bg-emerald-500', description: 'Read local file' },
+      { type: 'file-write', label: 'File Write', icon: FileOutput, color: 'bg-teal-500', description: 'Write local file' },
     ],
   },
   output: {

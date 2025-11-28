@@ -47,6 +47,25 @@ const NODE_CONFIGS: Record<string, { fields: FieldConfig[] }> = {
       ]},
     ],
   },
+  'file-read': {
+    fields: [
+      { key: 'path', label: 'File Path', type: 'text', placeholder: '/path/to/file.txt' },
+      { key: 'encoding', label: 'Encoding', type: 'select', default: 'utf-8', options: [
+        { value: 'utf-8', label: 'UTF-8' },
+        { value: 'ascii', label: 'ASCII' },
+        { value: 'base64', label: 'Base64' },
+      ]},
+    ],
+  },
+  'file-write': {
+    fields: [
+      { key: 'path', label: 'File Path', type: 'text', placeholder: '/path/to/output.txt' },
+      { key: 'mode', label: 'Mode', type: 'select', default: 'overwrite', options: [
+        { value: 'overwrite', label: 'Overwrite' },
+        { value: 'append', label: 'Append' },
+      ]},
+    ],
+  },
 }
 
 interface FieldConfig {

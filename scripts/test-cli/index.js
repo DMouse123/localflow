@@ -476,6 +476,53 @@ async function runWorkflow(workflowId) {
           }
         }
         break
+      
+      case 'file-read':
+        const readPath = inputs.path || config.path
+        if (readPath) {
+          console.log(`     Reading: ${readPath}`)
+          try {
+            if (fs.existsSync(readPath)) {
+              const content = fs.readFileSync(readPath, config.encoding || 'utf-8')
+              outputs = { content, exists: true }
+              console.log(`     Read ${content.length} characters`)
+            } else {
+              outputs = { content: '', exists: false }
+              console.log(`     File not found`)
+            }
+          } catch (err) {
+            console.log(`     Error: ${err.message}`)
+            outputs = { content: '', exists: false }
+          }
+        }
+        break
+      
+      case 'file-write':
+        const writePath = inputs.path || config.path
+        const writeContent = inputs.content || ''
+        if (writePath) {
+          console.log(`     Writing: ${writePath}`)
+          try {
+            const dir = path.dirname(writePath)
+            if (!fs.existsSync(dir)) {
+              fs.mkdirSync(dir, { recursive: true })
+            }
+            const contentStr = typeof writeContent === 'object' 
+              ? JSON.stringify(writeContent, null, 2) 
+              : String(writeContent)
+            if (config.mode === 'append') {
+              fs.appendFileSync(writePath, contentStr)
+            } else {
+              fs.writeFileSync(writePath, contentStr)
+            }
+            outputs = { success: true, path: writePath }
+            console.log(`     Wrote ${contentStr.length} characters`)
+          } catch (err) {
+            console.log(`     Error: ${err.message}`)
+            outputs = { success: false, path: writePath }
+          }
+        }
+        break
     }
 
     nodeOutputs.set(node.id, outputs)

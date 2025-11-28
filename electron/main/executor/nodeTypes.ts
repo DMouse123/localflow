@@ -12,6 +12,8 @@
  */
 
 import LLMManager from '../llm/manager'
+import * as fs from 'fs'
+import * as path from 'path'
 
 export interface NodePort {
   id: string
@@ -275,6 +277,107 @@ const httpRequest: NodeTypeDefinition = {
   },
 }
 
+// DATA: File Read Node
+const fileRead: NodeTypeDefinition = {
+  id: 'file-read',
+  name: 'File Read',
+  category: 'data',
+  inputs: [
+    { id: 'path', name: 'Path', type: 'string' },
+  ],
+  outputs: [
+    { id: 'content', name: 'Content', type: 'string' },
+    { id: 'exists', name: 'Exists', type: 'boolean' },
+  ],
+  config: {
+    path: { type: 'string', label: 'File Path', default: '' },
+    encoding: { type: 'select', label: 'Encoding', default: 'utf-8', options: [
+      { value: 'utf-8', label: 'UTF-8' },
+      { value: 'ascii', label: 'ASCII' },
+      { value: 'base64', label: 'Base64' },
+    ]},
+  },
+  execute: async (inputs, config, context) => {
+    const filePath = inputs.path || config.path
+    if (!filePath) {
+      context.log('File Read: No path provided')
+      return { content: '', exists: false }
+    }
+
+    context.log(`Reading file: ${filePath}`)
+
+    try {
+      if (!fs.existsSync(filePath)) {
+        context.log(`File not found: ${filePath}`)
+        return { content: '', exists: false }
+      }
+
+      const content = fs.readFileSync(filePath, config.encoding || 'utf-8')
+      context.log(`Read ${content.length} characters`)
+      return { content, exists: true }
+    } catch (error) {
+      context.log(`File Read error: ${error}`)
+      return { content: `Error: ${error}`, exists: false }
+    }
+  },
+}
+
+// DATA: File Write Node
+const fileWrite: NodeTypeDefinition = {
+  id: 'file-write',
+  name: 'File Write',
+  category: 'data',
+  inputs: [
+    { id: 'path', name: 'Path', type: 'string' },
+    { id: 'content', name: 'Content', type: 'string' },
+  ],
+  outputs: [
+    { id: 'success', name: 'Success', type: 'boolean' },
+    { id: 'path', name: 'Path', type: 'string' },
+  ],
+  config: {
+    path: { type: 'string', label: 'File Path', default: '' },
+    mode: { type: 'select', label: 'Mode', default: 'overwrite', options: [
+      { value: 'overwrite', label: 'Overwrite' },
+      { value: 'append', label: 'Append' },
+    ]},
+  },
+  execute: async (inputs, config, context) => {
+    const filePath = inputs.path || config.path
+    const content = inputs.content || ''
+    
+    if (!filePath) {
+      context.log('File Write: No path provided')
+      return { success: false, path: '' }
+    }
+
+    context.log(`Writing to file: ${filePath}`)
+
+    try {
+      // Ensure directory exists
+      const dir = path.dirname(filePath)
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true })
+      }
+
+      // Write content
+      const contentStr = typeof content === 'object' ? JSON.stringify(content, null, 2) : String(content)
+      
+      if (config.mode === 'append') {
+        fs.appendFileSync(filePath, contentStr)
+      } else {
+        fs.writeFileSync(filePath, contentStr)
+      }
+
+      context.log(`Wrote ${contentStr.length} characters`)
+      return { success: true, path: filePath }
+    } catch (error) {
+      context.log(`File Write error: ${error}`)
+      return { success: false, path: filePath }
+    }
+  },
+}
+
 // ============ NODE REGISTRY ============
 
 export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
@@ -284,6 +387,8 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
   'ai-transform': aiTransform,
   'debug': debugNode,
   'http-request': httpRequest,
+  'file-read': fileRead,
+  'file-write': fileWrite,
 }
 
 export function getNodeType(typeId: string): NodeTypeDefinition | undefined {
