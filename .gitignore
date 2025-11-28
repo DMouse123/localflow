@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+.localflow.pid
+/tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test outputs
+coverage/
+
+# Downloaded models (too large for git)
+# Models are stored in ~/.localflow/models/ anyway
