@@ -523,6 +523,45 @@ async function runWorkflow(workflowId) {
           }
         }
         break
+      
+      case 'json-parse':
+        const jsonInput = inputs.input || ''
+        try {
+          let jsonData = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput
+          if (config.path) {
+            const parts = config.path.split('.')
+            for (const part of parts) {
+              if (jsonData && typeof jsonData === 'object') {
+                jsonData = jsonData[part]
+              }
+            }
+          }
+          outputs = { data: jsonData, valid: true }
+          console.log(`     Parsed: ${typeof jsonData}`)
+        } catch (err) {
+          outputs = { data: null, valid: false }
+          console.log(`     Parse error: ${err.message}`)
+        }
+        break
+      
+      case 'loop':
+        let loopItems = inputs.items || []
+        if (typeof loopItems === 'string') {
+          try {
+            loopItems = JSON.parse(loopItems)
+          } catch {
+            loopItems = loopItems.split('\n').filter(line => line.trim())
+          }
+        }
+        if (!Array.isArray(loopItems)) {
+          loopItems = [loopItems]
+        }
+        if (config.maxItems && config.maxItems > 0) {
+          loopItems = loopItems.slice(0, config.maxItems)
+        }
+        outputs = { item: loopItems[0], index: 0, results: loopItems }
+        console.log(`     Loop: ${loopItems.length} items`)
+        break
     }
 
     nodeOutputs.set(node.id, outputs)

@@ -66,6 +66,16 @@ const NODE_CONFIGS: Record<string, { fields: FieldConfig[] }> = {
       ]},
     ],
   },
+  'json-parse': {
+    fields: [
+      { key: 'path', label: 'Extract Path (optional)', type: 'text', placeholder: 'data.items.0' },
+    ],
+  },
+  'loop': {
+    fields: [
+      { key: 'maxItems', label: 'Max Items (0=all)', type: 'number', default: 0, min: 0 },
+    ],
+  },
 }
 
 interface FieldConfig {

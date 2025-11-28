@@ -378,6 +378,97 @@ const fileWrite: NodeTypeDefinition = {
   },
 }
 
+// DATA: JSON Parse Node
+const jsonParse: NodeTypeDefinition = {
+  id: 'json-parse',
+  name: 'JSON Parse',
+  category: 'data',
+  inputs: [
+    { id: 'input', name: 'Input', type: 'string' },
+  ],
+  outputs: [
+    { id: 'data', name: 'Data', type: 'any' },
+    { id: 'valid', name: 'Valid', type: 'boolean' },
+  ],
+  config: {
+    path: { type: 'string', label: 'Extract Path (optional)', default: '' },
+  },
+  execute: async (inputs, config, context) => {
+    const input = inputs.input || ''
+    
+    try {
+      let data = typeof input === 'string' ? JSON.parse(input) : input
+      
+      // Extract nested path if specified (e.g., "items.0.name")
+      if (config.path) {
+        const parts = config.path.split('.')
+        for (const part of parts) {
+          if (data && typeof data === 'object') {
+            data = data[part]
+          }
+        }
+      }
+      
+      context.log(`JSON Parse: ${typeof data}`)
+      return { data, valid: true }
+    } catch (error) {
+      context.log(`JSON Parse error: ${error}`)
+      return { data: null, valid: false }
+    }
+  },
+}
+
+// DATA: Loop Node - Processes each item in an array
+const loopNode: NodeTypeDefinition = {
+  id: 'loop',
+  name: 'Loop',
+  category: 'data',
+  inputs: [
+    { id: 'items', name: 'Items', type: 'any' },
+  ],
+  outputs: [
+    { id: 'item', name: 'Current Item', type: 'any' },
+    { id: 'index', name: 'Index', type: 'number' },
+    { id: 'results', name: 'All Results', type: 'any' },
+  ],
+  config: {
+    maxItems: { type: 'number', label: 'Max Items (0=all)', default: 0 },
+  },
+  execute: async (inputs, config, context) => {
+    let items = inputs.items || []
+    
+    // Handle string input (try to parse as JSON array)
+    if (typeof items === 'string') {
+      try {
+        items = JSON.parse(items)
+      } catch {
+        // If not JSON, split by newlines
+        items = items.split('\n').filter((line: string) => line.trim())
+      }
+    }
+    
+    // Ensure it's an array
+    if (!Array.isArray(items)) {
+      items = [items]
+    }
+    
+    // Apply max items limit
+    if (config.maxItems && config.maxItems > 0) {
+      items = items.slice(0, config.maxItems)
+    }
+    
+    context.log(`Loop: Processing ${items.length} items`)
+    
+    // For now, return the array - the execution engine will need
+    // to be enhanced to support true looping
+    return { 
+      item: items[0], 
+      index: 0, 
+      results: items 
+    }
+  },
+}
+
 // ============ NODE REGISTRY ============
 
 export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
@@ -389,6 +480,8 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
   'http-request': httpRequest,
   'file-read': fileRead,
   'file-write': fileWrite,
+  'json-parse': jsonParse,
+  'loop': loopNode,
 }
 
 export function getNodeType(typeId: string): NodeTypeDefinition | undefined {

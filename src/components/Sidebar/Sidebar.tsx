@@ -13,6 +13,8 @@ import {
   Globe,
   FileInput,
   FileOutput,
+  Braces,
+  Repeat,
   type LucideIcon
 } from 'lucide-react'
 import ModelManager from './ModelManager'
@@ -48,6 +50,8 @@ const nodeCategories = {
       { type: 'http-request', label: 'HTTP Request', icon: Globe, color: 'bg-cyan-500', description: 'Make API calls' },
       { type: 'file-read', label: 'File Read', icon: FileInput, color: 'bg-emerald-500', description: 'Read local file' },
       { type: 'file-write', label: 'File Write', icon: FileOutput, color: 'bg-teal-500', description: 'Write local file' },
+      { type: 'json-parse', label: 'JSON Parse', icon: Braces, color: 'bg-amber-500', description: 'Parse JSON data' },
+      { type: 'loop', label: 'Loop', icon: Repeat, color: 'bg-violet-500', description: 'Iterate over items' },
     ],
   },
   output: {
