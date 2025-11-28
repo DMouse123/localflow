@@ -112,6 +112,8 @@ function ConfigField({ field, value, onChange }: ConfigFieldProps) {
         <textarea
           value={currentValue}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
+          onFocus={(e) => e.stopPropagation()}
           placeholder={field.placeholder}
           rows={4}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm
@@ -125,6 +127,7 @@ function ConfigField({ field, value, onChange }: ConfigFieldProps) {
           type="number"
           value={currentValue}
           onChange={(e) => onChange(Number(e.target.value))}
+          onKeyDown={(e) => e.stopPropagation()}
           min={field.min}
           max={field.max}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm
@@ -170,6 +173,7 @@ function ConfigField({ field, value, onChange }: ConfigFieldProps) {
           type="text"
           value={currentValue}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
           placeholder={field.placeholder}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm
                      focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -9,10 +9,29 @@ import { MODEL_CATALOG, ModelInfo } from './catalog'
 // Paths
 const LOCALFLOW_DIR = path.join(os.homedir(), '.localflow')
 const MODELS_DIR = path.join(LOCALFLOW_DIR, 'models')
+const STATE_FILE = path.join(LOCALFLOW_DIR, 'model-state.json')
 
 // Ensure models directory exists
 if (!fs.existsSync(MODELS_DIR)) {
   fs.mkdirSync(MODELS_DIR, { recursive: true })
+}
+
+// Persistent state helpers
+function loadPersistedState(): { lastLoadedModel?: string } {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'))
+    }
+  } catch {}
+  return {}
+}
+
+function savePersistedState(data: { lastLoadedModel?: string }) {
+  try {
+    fs.writeFileSync(STATE_FILE, JSON.stringify(data, null, 2))
+  } catch (e) {
+    console.error('[LLM] Failed to save state:', e)
+  }
 }
 
 // Track model state
@@ -42,6 +61,22 @@ export function initModelManager() {
     .filter(m => files.includes(m.filename))
     .map(m => m.id)
   console.log('[LLM] Found downloaded models:', state.downloaded)
+  
+  // Check for last loaded model
+  const persisted = loadPersistedState()
+  if (persisted.lastLoadedModel) {
+    console.log('[LLM] Last loaded model:', persisted.lastLoadedModel)
+  }
+}
+
+// Get last loaded model ID (for auto-restore)
+export function getLastLoadedModel(): string | null {
+  const persisted = loadPersistedState()
+  // Only return if model is still downloaded
+  if (persisted.lastLoadedModel && state.downloaded.includes(persisted.lastLoadedModel)) {
+    return persisted.lastLoadedModel
+  }
+  return null
 }
 
 // Get catalog with download status
@@ -171,6 +206,9 @@ export async function loadModel(modelId: string, window: BrowserWindow): Promise
 
     state.loading = null
     state.loaded = modelId
+    
+    // Save last loaded model for auto-restore
+    savePersistedState({ lastLoadedModel: modelId })
     
     window.webContents.send('llm:model-status', { modelId, status: 'loaded' })
     console.log('[LLM] Model loaded:', modelInfo.name)

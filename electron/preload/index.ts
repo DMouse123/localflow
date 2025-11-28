@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('electron', {
   llm: {
     listModels: () => ipcRenderer.invoke('llm:list-models'),
     getState: () => ipcRenderer.invoke('llm:get-state'),
+    getLastLoaded: () => ipcRenderer.invoke('llm:get-last-loaded'),
     downloadModel: (id: string) => ipcRenderer.invoke('llm:download-model', id),
     loadModel: (id: string) => ipcRenderer.invoke('llm:load-model', id),
     unloadModel: () => ipcRenderer.invoke('llm:unload-model'),

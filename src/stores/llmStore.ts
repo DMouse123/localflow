@@ -95,7 +95,7 @@ export const useLLMStore = create<LLMState>((set, get) => ({
   setGeneratedText: (text) => set({ generatedText: text }),
 }))
 
-// Set up IPC event listeners
+// Set up IPC event listeners and auto-load last model
 if (typeof window !== 'undefined' && window.electron) {
   window.electron.on('llm:download-progress', (data: unknown) => {
     const progress = data as DownloadProgress
@@ -121,4 +121,17 @@ if (typeof window !== 'undefined' && window.electron) {
     const { full } = data as { chunk: string; full: string }
     useLLMStore.getState().setGeneratedText(full)
   })
+
+  // Auto-load last used model on startup
+  setTimeout(async () => {
+    try {
+      const lastLoaded = await (window.electron.llm as any).getLastLoaded?.()
+      if (lastLoaded) {
+        console.log('[LLM Store] Auto-loading last model:', lastLoaded)
+        await useLLMStore.getState().loadModel(lastLoaded)
+      }
+    } catch (e) {
+      console.error('[LLM Store] Auto-load failed:', e)
+    }
+  }, 1000) // Wait 1 second for app to initialize
 }

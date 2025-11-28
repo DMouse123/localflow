@@ -143,6 +143,10 @@ ipcMain.handle('llm:get-state', () => {
   return LLMManager.getModelState()
 })
 
+ipcMain.handle('llm:get-last-loaded', () => {
+  return LLMManager.getLastLoadedModel()
+})
+
 ipcMain.handle('llm:download-model', async (_, modelId) => {
   if (!mainWindow) return { success: false, error: 'No window' }
   const result = await LLMManager.downloadModel(modelId, mainWindow)
