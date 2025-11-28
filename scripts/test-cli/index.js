@@ -362,10 +362,16 @@ async function runWorkflow(workflowId) {
     const incomingEdges = workflow.edges.filter(e => e.target === node.id)
     for (const edge of incomingEdges) {
       const sourceOutputs = nodeOutputs.get(edge.source) || {}
-      const sourceKey = Object.keys(sourceOutputs)[0]
-      if (sourceKey) {
-        inputs.input = sourceOutputs[sourceKey]
-        inputs.prompt = sourceOutputs[sourceKey]
+      // Use sourceHandle if specified, otherwise first output key
+      const sourceKey = edge.sourceHandle || Object.keys(sourceOutputs)[0]
+      // Use targetHandle if specified, otherwise default inputs
+      const targetKey = edge.targetHandle || 'input'
+      if (sourceOutputs[sourceKey] !== undefined) {
+        inputs[targetKey] = sourceOutputs[sourceKey]
+        // Also map common aliases
+        inputs.input = inputs.input || sourceOutputs[sourceKey]
+        inputs.prompt = inputs.prompt || sourceOutputs[sourceKey]
+        inputs.text = inputs.text || sourceOutputs[sourceKey]
       }
     }
 
@@ -384,8 +390,12 @@ async function runWorkflow(workflowId) {
         break
       
       case 'ai-chat':
-        const chatPrompt = inputs.prompt || inputs.text || inputs.input || config.prompt || ''
-        console.log(`     Prompt: "${chatPrompt.substring(0, 50)}..."`)
+        let chatPrompt = inputs.prompt || inputs.text || inputs.input || config.prompt || ''
+        // If prompt is an object, stringify it
+        if (typeof chatPrompt === 'object') {
+          chatPrompt = JSON.stringify(chatPrompt)
+        }
+        console.log(`     Prompt: "${String(chatPrompt).substring(0, 50)}..."`)
         if (chatPrompt && model) {
           const response = await chatInternal(chatPrompt, config.systemPrompt)
           outputs = { response }
@@ -396,10 +406,14 @@ async function runWorkflow(workflowId) {
         break
       
       case 'ai-transform':
-        const input = inputs.input || ''
-        if (input && model) {
+        let transformInput = inputs.input || ''
+        // If input is an object, stringify it
+        if (typeof transformInput === 'object') {
+          transformInput = JSON.stringify(transformInput)
+        }
+        if (transformInput && model) {
           const instruction = config.instruction || 'Summarize:'
-          const fullPrompt = `${instruction}\n\n${input}`
+          const fullPrompt = `${instruction}\n\n${transformInput}`
           const result = await chatInternal(fullPrompt)
           outputs = { output: result }
           console.log(`     Transformed: "${result.substring(0, 80)}..."`)
@@ -407,8 +421,60 @@ async function runWorkflow(workflowId) {
         break
       
       case 'debug':
-        const value = inputs.input || ''
-        console.log(`     [DEBUG] ${config.label || 'Output'}: ${value}`)
+        const debugValue = inputs.input || ''
+        const debugOutput = typeof debugValue === 'object' 
+          ? JSON.stringify(debugValue, null, 2) 
+          : String(debugValue)
+        console.log(`     [DEBUG] ${config.label || 'Output'}: ${debugOutput}`)
+        break
+      
+      case 'http-request':
+        const url = inputs.url || config.url
+        if (url) {
+          console.log(`     HTTP ${config.method || 'GET'} ${url}`)
+          try {
+            const fetchOptions = {
+              method: config.method || 'GET',
+              headers: {},
+            }
+            
+            // Parse headers
+            try {
+              fetchOptions.headers = JSON.parse(config.headers || '{}')
+            } catch {}
+            
+            // Add body for POST/PUT/PATCH
+            if (['POST', 'PUT', 'PATCH'].includes(config.method) && inputs.body) {
+              fetchOptions.headers['Content-Type'] = config.contentType || 'application/json'
+              fetchOptions.body = typeof inputs.body === 'string' 
+                ? inputs.body 
+                : JSON.stringify(inputs.body)
+            }
+            
+            const response = await fetch(url, fetchOptions)
+            const contentType = response.headers.get('content-type') || ''
+            let responseData
+            if (contentType.includes('application/json')) {
+              responseData = await response.json()
+            } else {
+              responseData = await response.text()
+            }
+            
+            outputs = { 
+              response: responseData, 
+              status: response.status, 
+              headers: Object.fromEntries(response.headers.entries()) 
+            }
+            console.log(`     Status: ${response.status}`)
+            const preview = typeof responseData === 'object' 
+              ? JSON.stringify(responseData).substring(0, 80) 
+              : String(responseData).substring(0, 80)
+            console.log(`     Response: ${preview}...`)
+          } catch (err) {
+            console.log(`     Error: ${err.message}`)
+            outputs = { response: { error: err.message }, status: 0, headers: {} }
+          }
+        }
         break
     }
 

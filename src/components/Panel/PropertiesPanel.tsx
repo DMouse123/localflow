@@ -29,6 +29,24 @@ const NODE_CONFIGS: Record<string, { fields: FieldConfig[] }> = {
   'trigger': {
     fields: [],
   },
+  'http-request': {
+    fields: [
+      { key: 'method', label: 'Method', type: 'select', default: 'GET', options: [
+        { value: 'GET', label: 'GET' },
+        { value: 'POST', label: 'POST' },
+        { value: 'PUT', label: 'PUT' },
+        { value: 'DELETE', label: 'DELETE' },
+        { value: 'PATCH', label: 'PATCH' },
+      ]},
+      { key: 'url', label: 'URL', type: 'text', placeholder: 'https://api.example.com/data', default: '' },
+      { key: 'headers', label: 'Headers (JSON)', type: 'textarea', placeholder: '{"Authorization": "Bearer ..."}', default: '{}' },
+      { key: 'contentType', label: 'Content Type', type: 'select', default: 'application/json', options: [
+        { value: 'application/json', label: 'JSON' },
+        { value: 'application/x-www-form-urlencoded', label: 'Form URL Encoded' },
+        { value: 'text/plain', label: 'Plain Text' },
+      ]},
+    ],
+  },
 }
 
 interface FieldConfig {
@@ -92,6 +110,22 @@ function ConfigField({ field, value, onChange }: ConfigFieldProps) {
           />
           <span className="text-sm text-slate-600 w-12 text-right">{currentValue}</span>
         </div>
+      )
+
+    case 'select':
+      return (
+        <select
+          value={currentValue}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          {field.options?.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       )
 
     default:

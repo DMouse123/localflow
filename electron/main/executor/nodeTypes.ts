@@ -179,6 +179,102 @@ const debugNode: NodeTypeDefinition = {
   },
 }
 
+// DATA: HTTP Request Node
+const httpRequest: NodeTypeDefinition = {
+  id: 'http-request',
+  name: 'HTTP Request',
+  category: 'data',
+  inputs: [
+    { id: 'url', name: 'URL', type: 'string' },
+    { id: 'body', name: 'Body', type: 'any' },
+  ],
+  outputs: [
+    { id: 'response', name: 'Response', type: 'any' },
+    { id: 'status', name: 'Status', type: 'number' },
+    { id: 'headers', name: 'Headers', type: 'object' },
+  ],
+  config: {
+    method: { type: 'select', label: 'Method', default: 'GET', options: [
+      { value: 'GET', label: 'GET' },
+      { value: 'POST', label: 'POST' },
+      { value: 'PUT', label: 'PUT' },
+      { value: 'DELETE', label: 'DELETE' },
+      { value: 'PATCH', label: 'PATCH' },
+    ]},
+    url: { type: 'string', label: 'URL', default: 'https://api.example.com' },
+    headers: { type: 'text', label: 'Headers (JSON)', default: '{}' },
+    contentType: { type: 'select', label: 'Content Type', default: 'application/json', options: [
+      { value: 'application/json', label: 'JSON' },
+      { value: 'application/x-www-form-urlencoded', label: 'Form URL Encoded' },
+      { value: 'text/plain', label: 'Plain Text' },
+    ]},
+  },
+  execute: async (inputs, config, context) => {
+    // URL from input takes priority over config
+    const url = inputs.url || config.url
+    if (!url) {
+      context.log('HTTP Request: No URL provided')
+      return { response: null, status: 0, headers: {} }
+    }
+
+    context.log(`HTTP ${config.method} ${url}`)
+
+    try {
+      // Parse headers from config
+      let headers: Record<string, string> = {}
+      try {
+        headers = JSON.parse(config.headers || '{}')
+      } catch {
+        context.log('Warning: Could not parse headers JSON')
+      }
+
+      // Add content type for POST/PUT/PATCH
+      if (['POST', 'PUT', 'PATCH'].includes(config.method) && config.contentType) {
+        headers['Content-Type'] = config.contentType
+      }
+
+      // Prepare fetch options
+      const fetchOptions: RequestInit = {
+        method: config.method || 'GET',
+        headers,
+      }
+
+      // Add body for POST/PUT/PATCH
+      if (['POST', 'PUT', 'PATCH'].includes(config.method) && inputs.body) {
+        if (config.contentType === 'application/json') {
+          fetchOptions.body = typeof inputs.body === 'string' 
+            ? inputs.body 
+            : JSON.stringify(inputs.body)
+        } else {
+          fetchOptions.body = String(inputs.body)
+        }
+      }
+
+      // Make the request
+      const response = await fetch(url, fetchOptions)
+      const status = response.status
+      const responseHeaders = Object.fromEntries(response.headers.entries())
+
+      // Parse response based on content type
+      let responseData: any
+      const contentType = response.headers.get('content-type') || ''
+      
+      if (contentType.includes('application/json')) {
+        responseData = await response.json()
+      } else {
+        responseData = await response.text()
+      }
+
+      context.log(`HTTP Response: ${status}`)
+      return { response: responseData, status, headers: responseHeaders }
+
+    } catch (error) {
+      context.log(`HTTP Request error: ${error}`)
+      return { response: { error: String(error) }, status: 0, headers: {} }
+    }
+  },
+}
+
 // ============ NODE REGISTRY ============
 
 export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
@@ -187,6 +283,7 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
   'ai-chat': aiChat,
   'ai-transform': aiTransform,
   'debug': debugNode,
+  'http-request': httpRequest,
 }
 
 export function getNodeType(typeId: string): NodeTypeDefinition | undefined {

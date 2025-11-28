@@ -10,6 +10,7 @@ import {
   Cpu,
   Blocks,
   LayoutTemplate,
+  Globe,
   type LucideIcon
 } from 'lucide-react'
 import ModelManager from './ModelManager'
@@ -42,6 +43,7 @@ const nodeCategories = {
     label: 'Data',
     nodes: [
       { type: 'text-input', label: 'Text Input', icon: FileText, color: 'bg-gray-500', description: 'Static text value' },
+      { type: 'http-request', label: 'HTTP Request', icon: Globe, color: 'bg-cyan-500', description: 'Make API calls' },
     ],
   },
   output: {
