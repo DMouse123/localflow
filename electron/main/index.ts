@@ -64,6 +64,15 @@ app.whenReady().then(() => {
   // Initialize Claude Remote Control after window is created
   if (mainWindow) {
     initClaudeControl(mainWindow)
+    
+    // Send auto-load signal after window is ready
+    mainWindow.webContents.on('did-finish-load', () => {
+      const lastModel = LLMManager.getLastLoadedModel()
+      console.log('[Main] Window loaded, last model:', lastModel)
+      if (lastModel) {
+        mainWindow?.webContents.send('llm:auto-load', lastModel)
+      }
+    })
   }
 })
 
@@ -193,4 +202,15 @@ ipcMain.handle('workflow:execute', async (_, workflowData) => {
   } catch (error) {
     return { success: false, error: String(error) }
   }
+})
+
+// ============ App Control Handlers ============
+
+ipcMain.handle('app:quit', () => {
+  app.quit()
+})
+
+ipcMain.handle('app:restart', () => {
+  app.relaunch()
+  app.quit()
 })

@@ -35,13 +35,16 @@ export default function WorkflowCanvas() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't handle keys if user is typing in an input/textarea
+      const target = event.target as HTMLElement
+      const isEditing = target.tagName === 'INPUT' || 
+                        target.tagName === 'TEXTAREA' ||
+                        target.isContentEditable ||
+                        target.closest('input, textarea, [contenteditable="true"]')
+      
       // Delete selected node
       if (event.key === 'Delete' || event.key === 'Backspace') {
-        // Don't delete if typing in an input
-        if ((event.target as HTMLElement).tagName === 'INPUT' || 
-            (event.target as HTMLElement).tagName === 'TEXTAREA') {
-          return
-        }
+        if (isEditing) return
         deleteSelectedNodes()
       }
       
@@ -111,6 +114,7 @@ export default function WorkflowCanvas() {
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
+        deleteKeyCode={null}
         fitView
         snapToGrid
         snapGrid={[15, 15]}

@@ -5,6 +5,12 @@ contextBridge.exposeInMainWorld('electron', {
   // App info
   getVersion: () => ipcRenderer.invoke('get-app-version'),
   
+  // App control
+  app: {
+    quit: () => ipcRenderer.invoke('app:quit'),
+    restart: () => ipcRenderer.invoke('app:restart'),
+  },
+  
   // Workflow operations
   workflow: {
     save: (workflow: unknown) => ipcRenderer.invoke('workflow:save', workflow),
@@ -40,6 +46,10 @@ contextBridge.exposeInMainWorld('electron', {
 // Type definitions for renderer
 export interface ElectronAPI {
   getVersion: () => Promise<string>
+  app: {
+    quit: () => Promise<void>
+    restart: () => Promise<void>
+  }
   workflow: {
     save: (workflow: unknown) => Promise<{ success: boolean; path?: string; error?: string }>
     load: (id: string) => Promise<{ success: boolean; data?: unknown; error?: string }>
@@ -50,6 +60,7 @@ export interface ElectronAPI {
   llm: {
     listModels: () => Promise<unknown[]>
     getState: () => Promise<unknown>
+    getLastLoaded: () => Promise<string | null>
     downloadModel: (id: string) => Promise<{ success: boolean; error?: string }>
     loadModel: (id: string) => Promise<{ success: boolean; error?: string }>
     unloadModel: () => Promise<{ success: boolean }>

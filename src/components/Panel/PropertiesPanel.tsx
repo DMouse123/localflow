@@ -110,10 +110,10 @@ function ConfigField({ field, value, onChange }: ConfigFieldProps) {
     case 'textarea':
       return (
         <textarea
-          value={currentValue}
+          key={`${field.key}-${currentValue}`}
+          defaultValue={currentValue}
           onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => e.stopPropagation()}
-          onFocus={(e) => e.stopPropagation()}
+          onBlur={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
           rows={4}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm
@@ -171,9 +171,10 @@ function ConfigField({ field, value, onChange }: ConfigFieldProps) {
       return (
         <input
           type="text"
-          value={currentValue}
+          key={`${field.key}-${currentValue}`}
+          defaultValue={currentValue}
           onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => e.stopPropagation()}
+          onBlur={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm
                      focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -198,7 +199,12 @@ export default function PropertiesPanel() {
   }
 
   return (
-    <aside className="w-80 bg-white border-l border-slate-200 flex flex-col h-full">
+    <aside 
+      className="w-80 bg-white border-l border-slate-200 flex flex-col h-full"
+      onKeyDown={(e) => e.stopPropagation()}
+      onKeyUp={(e) => e.stopPropagation()}
+      onKeyPress={(e) => e.stopPropagation()}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-200">
         <h2 className="font-semibold text-slate-800">Properties</h2>
@@ -230,6 +236,7 @@ export default function PropertiesPanel() {
             type="text"
             value={selectedNode.data.label}
             onChange={(e) => updateNode(selectedNode.id, { label: e.target.value })}
+            onKeyDown={(e) => e.stopPropagation()}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm
                        focus:outline-none focus:ring-2 focus:ring-blue-500"
           />

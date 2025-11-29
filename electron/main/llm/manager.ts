@@ -250,8 +250,12 @@ export async function generate(
   
   try {
     const { LlamaChatSession } = await import('node-llama-cpp')
+    
+    // Get a fresh sequence for each generation
+    const sequence = context.getSequence()
+    
     const session = new LlamaChatSession({ 
-      contextSequence: context.getSequence(),
+      contextSequence: sequence,
       systemPrompt: systemPrompt || undefined,
     })
     
@@ -265,6 +269,9 @@ export async function generate(
         window.webContents.send('llm:generation-chunk', { chunk, full: fullResponse })
       },
     })
+
+    // Dispose the sequence after use
+    sequence.dispose()
 
     window.webContents.send('llm:generation-done', { response: fullResponse })
     return fullResponse
@@ -288,12 +295,20 @@ export async function generateSync(
   
   try {
     const { LlamaChatSession } = await import('node-llama-cpp')
+    
+    // Get a fresh sequence for each generation to avoid "No sequences left" error
+    const sequence = context.getSequence()
+    
     const session = new LlamaChatSession({ 
-      contextSequence: context.getSequence(),
+      contextSequence: sequence,
       systemPrompt: systemPrompt || undefined,
     })
     
     const response = await session.prompt(prompt, { maxTokens, temperature })
+    
+    // Dispose the sequence after use to free it up
+    sequence.dispose()
+    
     return response
   } catch (error) {
     console.error('[LLM] Generation failed:', error)
@@ -311,6 +326,7 @@ export default {
   initModelManager,
   getModelCatalog,
   getModelState,
+  getLastLoadedModel,
   downloadModel,
   loadModel,
   unloadModel,

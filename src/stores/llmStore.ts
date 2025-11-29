@@ -122,16 +122,12 @@ if (typeof window !== 'undefined' && window.electron) {
     useLLMStore.getState().setGeneratedText(full)
   })
 
-  // Auto-load last used model on startup
-  setTimeout(async () => {
-    try {
-      const lastLoaded = await (window.electron.llm as any).getLastLoaded?.()
-      if (lastLoaded) {
-        console.log('[LLM Store] Auto-loading last model:', lastLoaded)
-        await useLLMStore.getState().loadModel(lastLoaded)
-      }
-    } catch (e) {
-      console.error('[LLM Store] Auto-load failed:', e)
+  // Auto-load last used model on startup - triggered by main process
+  window.electron.on('llm:auto-load', async (modelId: unknown) => {
+    console.log('[LLM Store] Auto-load signal received:', modelId)
+    if (modelId && typeof modelId === 'string') {
+      console.log('[LLM Store] Auto-loading model:', modelId)
+      useLLMStore.getState().loadModel(modelId)
     }
-  }, 1000) // Wait 1 second for app to initialize
+  })
 }

@@ -9,7 +9,7 @@ import ClaudeActivity from './components/ClaudeActivity/ClaudeActivity'
 import { useWorkflowStore } from './stores/workflowStore'
 import { useExecutionStore } from './stores/executionStore'
 import { useLLMStore } from './stores/llmStore'
-import { Save, FileText, Play, Square, Terminal } from 'lucide-react'
+import { Save, FileText, Play, Square, Terminal, Power, RotateCcw } from 'lucide-react'
 
 function App() {
   const selectedNode = useWorkflowStore((state) => state.selectedNode)
@@ -85,6 +85,7 @@ function App() {
             type="text"
             value={workflowName}
             onChange={(e) => setWorkflowName(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
             className="text-sm font-medium text-slate-700 bg-transparent border-none 
                        focus:outline-none focus:ring-0 w-48"
             placeholder="Workflow name"
@@ -137,6 +138,29 @@ function App() {
         >
           <Save className="w-4 h-4" />
           Save
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-6 bg-slate-200" />
+
+        {/* Restart Button */}
+        <button
+          onClick={() => window.electron.app.restart()}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 
+                     hover:bg-blue-50 rounded-md transition-colors"
+          title="Restart app"
+        >
+          <RotateCcw className="w-4 h-4" />
+        </button>
+
+        {/* Quit Button */}
+        <button
+          onClick={() => window.electron.app.quit()}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 
+                     hover:bg-red-50 rounded-md transition-colors"
+          title="Quit app"
+        >
+          <Power className="w-4 h-4" />
         </button>
       </header>
 
