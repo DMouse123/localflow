@@ -26,6 +26,11 @@
 - [x] System prompt with full platform knowledge
 - [x] Session memory (multi-turn conversations)
 - [x] Chat API for external access (POST /chat)
+- [x] Command execution (addNode, connect, clear, loadTemplate, run)
+- [x] Workflow state tracking per session
+- [x] GET /chat/:sessionId/workflow endpoint
+- [x] Parser handles multiple command formats
+- [ ] **Small local model inconsistently outputs commands** - works sometimes, not always
 
 ### MCP Server
 - [x] MCP server package (mcp-server/)
