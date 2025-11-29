@@ -37,14 +37,15 @@
 ## 🔲 TODO
 
 ### Master AI Chat
-- [ ] Chat interface in app (sidebar or panel)
-- [ ] System prompt with full platform knowledge
-- [ ] Can see all nodes, tools, plugins, templates
+- [x] Chat interface in app (upgraded existing)
+- [x] System prompt with full platform knowledge
+- [x] Can see all nodes, tools, plugins, templates
 - [ ] Can explain the system to users
 - [ ] Can suggest workflow designs from descriptions
-- [ ] Can build workflows from conversation
-- [ ] Can run workflows via commands
+- [x] Can build workflows from conversation (command blocks)
+- [x] Can run workflows via commands
 - [ ] Remembers conversation context
+- [ ] Test and refine
 
 ### MCP Server Integration
 - [ ] Create MCP server (Model Context Protocol)
