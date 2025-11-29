@@ -168,3 +168,56 @@ See [WEBSOCKET_API.md](./WEBSOCKET_API.md) for details.
 Talk to the Master AI with conversation memory: `POST /chat`
 
 See [CHAT_API.md](./CHAT_API.md) for details.
+
+---
+
+## Workflow Storage API
+
+Save and manage custom workflows.
+
+### List Saved Workflows
+
+```
+GET /workflows
+```
+
+### Get a Workflow
+
+```
+GET /workflows/:id
+```
+
+### Save a New Workflow
+
+```
+POST /workflows
+Content-Type: application/json
+
+{
+  "name": "My Workflow",
+  "description": "Optional description",
+  "nodes": [...],
+  "edges": [...]
+}
+```
+
+### Update a Workflow
+
+```
+PUT /workflows/:id
+Content-Type: application/json
+
+{
+  "name": "New Name",
+  "nodes": [...],
+  "edges": [...]
+}
+```
+
+### Delete a Workflow
+
+```
+DELETE /workflows/:id
+```
+
+Workflows are stored in `~/.localflow/workflows/`.
