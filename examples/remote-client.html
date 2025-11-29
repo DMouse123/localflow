@@ -241,18 +241,11 @@
       document.getElementById('resultBox').style.display = 'none';
       log(`🚀 Running workflow: ${templateId}`, 'info');
       
-      // Send command to load template and run it
+      // Run template directly (headless - no UI needed)
       ws.send(JSON.stringify({
-        type: 'workflow:loadTemplate',
-        templateId: templateId
+        type: 'workflow:runTemplate',
+        payload: { templateId: templateId }
       }));
-      
-      // Give it a moment to load, then run
-      setTimeout(() => {
-        ws.send(JSON.stringify({
-          type: 'workflow:run'
-        }));
-      }, 500);
     }
 
     function clearLog() {

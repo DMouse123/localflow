@@ -7,6 +7,8 @@
 
 import { WebSocketServer, WebSocket } from 'ws'
 import { BrowserWindow, ipcMain } from 'electron'
+import { getTemplate, listTemplates } from './templates'
+import { executeWorkflow } from './executor/engine'
 
 let wss: WebSocketServer | null = null
 let mainWindow: BrowserWindow | null = null
@@ -46,17 +48,64 @@ export function initClaudeControl(window: BrowserWindow) {
           const command: ClaudeCommand = JSON.parse(data.toString())
           console.log('[Claude Control] Command:', command.type, command.payload || '')
           
-          // Send command to renderer for UI updates
+          // Handle some commands directly in main process (headless)
+          let result: any = null
+          let handled = false
+
+          switch (command.type) {
+            case 'workflow:listTemplates':
+              result = { templates: listTemplates() }
+              handled = true
+              break
+
+            case 'workflow:runTemplate':
+              // Run a template directly without UI
+              const templateId = command.payload?.templateId
+              if (!templateId) {
+                result = { error: 'Missing templateId' }
+              } else {
+                const template = getTemplate(templateId)
+                if (!template) {
+                  result = { error: `Template not found: ${templateId}` }
+                } else {
+                  console.log(`[Claude Control] Running template: ${template.name}`)
+                  try {
+                    const execResult = await executeWorkflow(
+                      { id: templateId, name: template.name, nodes: template.nodes, edges: template.edges },
+                      mainWindow
+                    )
+                    result = execResult
+                  } catch (err) {
+                    result = { error: String(err) }
+                  }
+                }
+              }
+              handled = true
+              break
+          }
+
+          if (handled) {
+            // Send result directly
+            const response: ClaudeResponse = {
+              id: command.id,
+              success: !result?.error,
+              result
+            }
+            ws.send(JSON.stringify(response))
+            return
+          }
+
+          // Forward other commands to renderer for UI updates
           mainWindow?.webContents.send('claude:command', command)
           
           // Wait for renderer to process and respond
-          const result = await waitForRendererResponse(command.id)
+          const rendererResult = await waitForRendererResponse(command.id)
           
           // Send result back to Claude
           const response: ClaudeResponse = {
             id: command.id,
             success: true,
-            result
+            result: rendererResult
           }
           ws.send(JSON.stringify(response))
           
