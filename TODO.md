@@ -49,11 +49,14 @@
 - [ ] Improve command execution reliability (local model inconsistent)
 
 ### MCP Server Integration
-- [ ] Create MCP server (Model Context Protocol)
-- [ ] Expose `run_workflow` as MCP tool
-- [ ] Expose `list_templates` as MCP resource
+- [x] Create MCP server package
+- [x] Expose `list_templates` as MCP tool
+- [x] Expose `run_workflow` as MCP tool  
+- [x] Expose `chat` as MCP tool (talk to Master AI)
+- [x] Expose `health` as MCP tool
 - [ ] Test with Claude Desktop
-- [ ] Document MCP setup
+- [x] Document MCP setup (mcp-server/README.md)
+- [x] Add to Claude Desktop config instructions
 
 ### Workflow Composability
 - [ ] Create `tool-workflow` node type

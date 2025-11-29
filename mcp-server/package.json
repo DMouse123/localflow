@@ -1,0 +1,14 @@
+{
+  "name": "localflow-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for LocalFlow - run AI workflows from Claude Desktop",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "node-fetch": "^3.3.2"
+  }
+}
