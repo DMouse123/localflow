@@ -217,6 +217,231 @@ const fileListTool: Tool = {
   }
 }
 
+// ============ ADVANCED TOOLS ============
+
+const mathAdvancedTool: Tool = {
+  name: 'math_advanced',
+  description: 'Advanced math operations: sqrt, power, sin, cos, tan, log, abs, round, floor, ceil, min, max, random.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      operation: {
+        type: 'string',
+        description: 'The operation: sqrt, power, sin, cos, tan, log, abs, round, floor, ceil, min, max, random',
+        enum: ['sqrt', 'power', 'sin', 'cos', 'tan', 'log', 'abs', 'round', 'floor', 'ceil', 'min', 'max', 'random']
+      },
+      value: {
+        type: 'number',
+        description: 'The primary value for the operation'
+      },
+      value2: {
+        type: 'number',
+        description: 'Second value (for power, min, max operations)'
+      }
+    },
+    required: ['operation']
+  },
+  execute: async (params) => {
+    try {
+      const { operation, value, value2 } = params
+      let result: number
+      
+      switch (operation) {
+        case 'sqrt': result = Math.sqrt(value); break
+        case 'power': result = Math.pow(value, value2 || 2); break
+        case 'sin': result = Math.sin(value); break
+        case 'cos': result = Math.cos(value); break
+        case 'tan': result = Math.tan(value); break
+        case 'log': result = Math.log(value); break
+        case 'abs': result = Math.abs(value); break
+        case 'round': result = Math.round(value); break
+        case 'floor': result = Math.floor(value); break
+        case 'ceil': result = Math.ceil(value); break
+        case 'min': result = Math.min(value, value2); break
+        case 'max': result = Math.max(value, value2); break
+        case 'random': result = Math.random() * (value || 1); break
+        default: return { success: false, error: `Unknown operation: ${operation}` }
+      }
+      
+      return { success: true, result: Number(result.toFixed(10)) }
+    } catch (error) {
+      return { success: false, error: `Math error: ${error}` }
+    }
+  }
+}
+
+const stringOpsTool: Tool = {
+  name: 'string_ops',
+  description: 'String operations: length, uppercase, lowercase, reverse, trim, replace, split, contains, startsWith, endsWith.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      operation: {
+        type: 'string',
+        description: 'The operation: length, uppercase, lowercase, reverse, trim, replace, split, contains, startsWith, endsWith',
+        enum: ['length', 'uppercase', 'lowercase', 'reverse', 'trim', 'replace', 'split', 'contains', 'startsWith', 'endsWith']
+      },
+      text: {
+        type: 'string',
+        description: 'The text to operate on'
+      },
+      search: {
+        type: 'string',
+        description: 'Search string (for replace, split, contains, startsWith, endsWith)'
+      },
+      replacement: {
+        type: 'string',
+        description: 'Replacement string (for replace operation)'
+      }
+    },
+    required: ['operation', 'text']
+  },
+  execute: async (params) => {
+    try {
+      const { operation, text, search, replacement } = params
+      let result: any
+      
+      switch (operation) {
+        case 'length': result = text.length; break
+        case 'uppercase': result = text.toUpperCase(); break
+        case 'lowercase': result = text.toLowerCase(); break
+        case 'reverse': result = text.split('').reverse().join(''); break
+        case 'trim': result = text.trim(); break
+        case 'replace': result = text.replace(new RegExp(search, 'g'), replacement || ''); break
+        case 'split': result = text.split(search || ' '); break
+        case 'contains': result = text.includes(search); break
+        case 'startsWith': result = text.startsWith(search); break
+        case 'endsWith': result = text.endsWith(search); break
+        default: return { success: false, error: `Unknown operation: ${operation}` }
+      }
+      
+      return { success: true, result }
+    } catch (error) {
+      return { success: false, error: `String error: ${error}` }
+    }
+  }
+}
+
+const jsonQueryTool: Tool = {
+  name: 'json_query',
+  description: 'Query JSON data using dot notation paths. Extract specific values from JSON objects.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      json: {
+        type: 'string',
+        description: 'The JSON string to query'
+      },
+      path: {
+        type: 'string',
+        description: 'The path to extract, e.g., "user.name" or "items.0.title" or "data.results.length"'
+      }
+    },
+    required: ['json', 'path']
+  },
+  execute: async (params) => {
+    try {
+      const data = typeof params.json === 'string' ? JSON.parse(params.json) : params.json
+      const path = params.path.split('.')
+      
+      let result = data
+      for (const key of path) {
+        if (result === undefined || result === null) {
+          return { success: false, error: `Path not found: ${params.path}` }
+        }
+        // Handle array indices and "length" property
+        if (key === 'length' && Array.isArray(result)) {
+          result = result.length
+        } else {
+          result = result[key]
+        }
+      }
+      
+      return { success: true, result }
+    } catch (error) {
+      return { success: false, error: `JSON query error: ${error}` }
+    }
+  }
+}
+
+const shellTool: Tool = {
+  name: 'shell',
+  description: 'Execute a shell command (safe commands only: ls, cat, head, tail, wc, grep, find, echo, pwd, whoami, date, uname).',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      command: {
+        type: 'string',
+        description: 'The shell command to execute'
+      }
+    },
+    required: ['command']
+  },
+  execute: async (params) => {
+    const { execSync } = require('child_process')
+    const allowedCommands = ['ls', 'cat', 'head', 'tail', 'wc', 'grep', 'find', 'echo', 'pwd', 'whoami', 'date', 'uname']
+    
+    try {
+      const cmd = params.command.trim()
+      const firstWord = cmd.split(' ')[0]
+      
+      if (!allowedCommands.includes(firstWord)) {
+        return { success: false, error: `Command not allowed: ${firstWord}. Allowed: ${allowedCommands.join(', ')}` }
+      }
+      
+      const output = execSync(cmd, { encoding: 'utf-8', timeout: 5000 })
+      return { success: true, output: output.substring(0, 2000) }
+    } catch (error: any) {
+      return { success: false, error: `Shell error: ${error.message}` }
+    }
+  }
+}
+
+const generateIdTool: Tool = {
+  name: 'generate_id',
+  description: 'Generate unique identifiers: uuid, timestamp, random string.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      type: {
+        type: 'string',
+        description: 'Type of ID: uuid, timestamp, random',
+        enum: ['uuid', 'timestamp', 'random']
+      },
+      length: {
+        type: 'number',
+        description: 'Length for random string (default 8)'
+      }
+    },
+    required: ['type']
+  },
+  execute: async (params) => {
+    const { type, length = 8 } = params
+    let result: string
+    
+    switch (type) {
+      case 'uuid':
+        result = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = Math.random() * 16 | 0
+          const v = c === 'x' ? r : (r & 0x3 | 0x8)
+          return v.toString(16)
+        })
+        break
+      case 'timestamp':
+        result = Date.now().toString()
+        break
+      case 'random':
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+        result = Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+        break
+      default:
+        return { success: false, error: `Unknown type: ${type}` }
+    }
+    
+    return { success: true, id: result }
+  }
+}
+
 // ============ TOOL REGISTRY ============
 
 const BUILT_IN_TOOLS: Tool[] = [
@@ -226,6 +451,12 @@ const BUILT_IN_TOOLS: Tool[] = [
   fileReadTool,
   fileWriteTool,
   fileListTool,
+  // Advanced tools
+  mathAdvancedTool,
+  stringOpsTool,
+  jsonQueryTool,
+  shellTool,
+  generateIdTool,
 ]
 
 // Registry holds all available tools

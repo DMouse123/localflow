@@ -209,3 +209,51 @@ scripts/
 ├── test-orchestrator.js       # Basic orchestrator test
 └── test-orchestrator-tasks.js # Multi-task test suite
 ```
+
+
+---
+
+### Visual Tool Connections IMPLEMENTED ✅
+
+**Commit:** 371cace
+
+Successfully implemented the n8n-style visual tool connections:
+
+**How it works now:**
+1. User drags an AI Orchestrator node onto canvas
+2. User drags tool nodes (Calculator, HTTP, etc.) 
+3. User connects tool nodes to orchestrator's bottom "tools" port
+4. When workflow runs, orchestrator discovers connected tools
+5. Orchestrator uses those tools to complete the task
+
+**Test result:**
+```
+Task: "What is 42 times 17?"
+Connected tool: Calculator
+
+THOUGHT: To solve this problem, I will use the calculator tool
+ACTION: calculator  
+RESULT: 714
+DONE: The result of 42 times 17 is 714.
+```
+
+**Visual on canvas:**
+```
+[Trigger] → [Task: "42×17"] → [Orchestrator] → [Debug]
+                                    ↑
+                              [Calculator]  (connected via tool port)
+```
+
+**Files changed:**
+- `CustomNode.tsx` - Tool port handles, tool node styling
+- `engine.ts` - `getConnectedTools()` discovers from edges
+- `nodeTypes.ts` - ToolSchema interface, 6 tool node definitions
+- `orchestratorNode.ts` - Uses connected tools
+- `Sidebar.tsx` - Tools category
+- `PropertiesPanel.tsx` - Hints for tool nodes
+
+**Remaining issues:**
+- Workflow sometimes runs twice (UI trigger issue)
+- "No sequences left" error still appears intermittently
+
+---

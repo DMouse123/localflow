@@ -89,21 +89,7 @@ function parseResponse(response: string): {
       action = trimmed.substring(7).trim().toLowerCase()
     } else if (trimmed.startsWith('INPUT:')) {
       const inputStr = trimmed.substring(6).trim()
-      try {
-        input = JSON.parse(inputStr)
-      } catch {
-        // Try to extract JSON from the rest of the response
-        const jsonMatch = response.match(/INPUT:\s*(\{[\s\S]*?\})/m)
-        if (jsonMatch) {
-          try {
-            input = JSON.parse(jsonMatch[1])
-          } catch {
-            input = { raw: inputStr }
-          }
-        } else {
-          input = { raw: inputStr }
-        }
-      }
+      input = parseJsonFlexible(inputStr, response)
     } else if (trimmed.startsWith('DONE:')) {
       done = trimmed.substring(5).trim()
     }
@@ -115,6 +101,68 @@ function parseResponse(response: string): {
   }
 
   return { thought, action, input, done }
+}
+
+// Flexible JSON parser that handles common LLM output quirks
+function parseJsonFlexible(inputStr: string, fullResponse: string): any {
+  // Try standard JSON parse first
+  try {
+    return JSON.parse(inputStr)
+  } catch { /* continue */ }
+  
+  // Try to extract JSON object from the input
+  const jsonMatch = fullResponse.match(/INPUT:\s*(\{[\s\S]*?\})/m)
+  if (jsonMatch) {
+    let jsonStr = jsonMatch[1]
+    
+    // Try as-is first
+    try {
+      return JSON.parse(jsonStr)
+    } catch { /* continue */ }
+    
+    // Fix single quotes to double quotes (common LLM mistake)
+    try {
+      const fixed = jsonStr
+        .replace(/'/g, '"')
+        .replace(/(\w+):/g, '"$1":')  // quote unquoted keys
+      return JSON.parse(fixed)
+    } catch { /* continue */ }
+    
+    // Try even more lenient parsing
+    try {
+      // Remove trailing commas and fix common issues
+      const fixed = jsonStr
+        .replace(/'/g, '"')
+        .replace(/,\s*}/g, '}')
+        .replace(/,\s*]/g, ']')
+        .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')
+      return JSON.parse(fixed)
+    } catch { /* continue */ }
+  }
+  
+  // Last resort: try to parse key=value style
+  // e.g., "operation: 'uppercase', text: 'hello'" 
+  if (inputStr.includes(':')) {
+    try {
+      const obj: any = {}
+      // Match patterns like: key: 'value' or key: "value" or key: value
+      const pairs = inputStr.match(/(\w+)\s*[:=]\s*['"]?([^'"}\],]+)['"]?/g)
+      if (pairs) {
+        for (const pair of pairs) {
+          const match = pair.match(/(\w+)\s*[:=]\s*['"]?([^'"}\],]+)['"]?/)
+          if (match) {
+            obj[match[1]] = match[2].trim()
+          }
+        }
+        if (Object.keys(obj).length > 0) {
+          return obj
+        }
+      }
+    } catch { /* continue */ }
+  }
+  
+  // Return as raw if nothing works
+  return { raw: inputStr }
 }
 
 // Main orchestrator execution

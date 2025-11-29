@@ -97,6 +97,11 @@ const NODE_CONFIGS: Record<string, { fields: FieldConfig[] }> = {
   'tool-file-read': { fields: [], hint: '🔧 Connect to an AI Orchestrator\'s tool port (bottom)' },
   'tool-file-write': { fields: [], hint: '🔧 Connect to an AI Orchestrator\'s tool port (bottom)' },
   'tool-file-list': { fields: [], hint: '🔧 Connect to an AI Orchestrator\'s tool port (bottom)' },
+  'tool-math-advanced': { fields: [], hint: '🔧 sqrt, power, sin, cos, tan, log, abs, round, floor, ceil, min, max' },
+  'tool-string-ops': { fields: [], hint: '🔧 length, uppercase, lowercase, reverse, trim, replace, split, contains' },
+  'tool-json-query': { fields: [], hint: '🔧 Query JSON using dot notation: user.name, items.0.title' },
+  'tool-shell': { fields: [], hint: '🔧 Safe commands: ls, cat, head, tail, wc, grep, find, echo, pwd, date' },
+  'tool-generate-id': { fields: [], hint: '🔧 Generate: uuid, timestamp, or random string' },
 }
 
 interface FieldConfig {

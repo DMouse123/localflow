@@ -20,6 +20,10 @@ import {
   Clock,
   FolderOpen,
   Wrench,
+  SquareFunction,
+  Type,
+  Terminal,
+  Fingerprint,
   type LucideIcon
 } from 'lucide-react'
 import ModelManager from './ModelManager'
@@ -58,6 +62,11 @@ const nodeCategories = {
       { type: 'tool-file-read', label: 'File Read', icon: FileInput, color: 'bg-rose-500', description: 'Read local files' },
       { type: 'tool-file-write', label: 'File Write', icon: FileOutput, color: 'bg-rose-500', description: 'Write local files' },
       { type: 'tool-file-list', label: 'File List', icon: FolderOpen, color: 'bg-rose-500', description: 'List directory contents' },
+      { type: 'tool-math-advanced', label: 'Math Advanced', icon: SquareFunction, color: 'bg-rose-600', description: 'sqrt, power, trig, etc.' },
+      { type: 'tool-string-ops', label: 'String Ops', icon: Type, color: 'bg-rose-600', description: 'Text manipulation' },
+      { type: 'tool-json-query', label: 'JSON Query', icon: Braces, color: 'bg-rose-600', description: 'Query JSON with paths' },
+      { type: 'tool-shell', label: 'Shell Command', icon: Terminal, color: 'bg-rose-600', description: 'Run safe shell commands' },
+      { type: 'tool-generate-id', label: 'Generate ID', icon: Fingerprint, color: 'bg-rose-600', description: 'UUID, random strings' },
     ],
   },
   data: {

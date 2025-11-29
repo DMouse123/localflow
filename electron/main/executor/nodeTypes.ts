@@ -740,6 +740,119 @@ const toolFileList: NodeTypeDefinition = {
   }
 }
 
+// Advanced tool nodes
+const toolMathAdvanced: NodeTypeDefinition = {
+  id: 'tool-math-advanced',
+  name: 'Math Advanced',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'math_advanced',
+    description: 'Advanced math: sqrt, power, sin, cos, tan, log, abs, round, floor, ceil, min, max, random.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        operation: { type: 'string', description: 'Operation: sqrt, power, sin, cos, tan, log, abs, round, floor, ceil, min, max, random' },
+        value: { type: 'number', description: 'Primary value' },
+        value2: { type: 'number', description: 'Second value (for power, min, max)' }
+      },
+      required: ['operation']
+    }
+  }
+}
+
+const toolStringOps: NodeTypeDefinition = {
+  id: 'tool-string-ops',
+  name: 'String Ops',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'string_ops',
+    description: 'String operations: length, uppercase, lowercase, reverse, trim, replace, split, contains.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        operation: { type: 'string', description: 'Operation: length, uppercase, lowercase, reverse, trim, replace, split, contains' },
+        text: { type: 'string', description: 'Text to operate on' },
+        search: { type: 'string', description: 'Search string (for replace, contains)' },
+        replacement: { type: 'string', description: 'Replacement (for replace)' }
+      },
+      required: ['operation', 'text']
+    }
+  }
+}
+
+const toolJsonQuery: NodeTypeDefinition = {
+  id: 'tool-json-query',
+  name: 'JSON Query',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'json_query',
+    description: 'Query JSON using dot notation paths, e.g., "user.name" or "items.0.title".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        json: { type: 'string', description: 'JSON string to query' },
+        path: { type: 'string', description: 'Dot notation path, e.g., "data.results.0.name"' }
+      },
+      required: ['json', 'path']
+    }
+  }
+}
+
+const toolShell: NodeTypeDefinition = {
+  id: 'tool-shell',
+  name: 'Shell Command',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'shell',
+    description: 'Run safe shell commands: ls, cat, head, tail, wc, grep, find, echo, pwd, date.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'Shell command to execute' }
+      },
+      required: ['command']
+    }
+  }
+}
+
+const toolGenerateId: NodeTypeDefinition = {
+  id: 'tool-generate-id',
+  name: 'Generate ID',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'generate_id',
+    description: 'Generate unique identifiers: uuid, timestamp, or random string.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', description: 'Type: uuid, timestamp, random' },
+        length: { type: 'number', description: 'Length for random string (default 8)' }
+      },
+      required: ['type']
+    }
+  }
+}
+
 // ============ NODE REGISTRY ============
 
 export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
@@ -761,6 +874,12 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
   'tool-file-read': toolFileRead,
   'tool-file-write': toolFileWrite,
   'tool-file-list': toolFileList,
+  // Advanced tool nodes
+  'tool-math-advanced': toolMathAdvanced,
+  'tool-string-ops': toolStringOps,
+  'tool-json-query': toolJsonQuery,
+  'tool-shell': toolShell,
+  'tool-generate-id': toolGenerateId,
 }
 
 // Note: AI Orchestrator is registered separately via registerOrchestratorNode()

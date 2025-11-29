@@ -21,6 +21,10 @@ import {
   Clock,
   FolderOpen,
   Wrench,
+  SquareFunction,
+  Type,
+  Terminal,
+  Fingerprint,
   type LucideIcon 
 } from 'lucide-react'
 import { useExecutionStore } from '../../stores/executionStore'
@@ -46,6 +50,11 @@ const nodeIcons: Record<string, LucideIcon> = {
   'tool-file-read': FileInput,
   'tool-file-write': FileOutput,
   'tool-file-list': FolderOpen,
+  'tool-math-advanced': SquareFunction,
+  'tool-string-ops': Type,
+  'tool-json-query': Braces,
+  'tool-shell': Terminal,
+  'tool-generate-id': Fingerprint,
   default: Database,
 }
 
@@ -70,6 +79,11 @@ const nodeColors: Record<string, string> = {
   'tool-file-read': 'bg-rose-500',
   'tool-file-write': 'bg-rose-500',
   'tool-file-list': 'bg-rose-500',
+  'tool-math-advanced': 'bg-rose-600',
+  'tool-string-ops': 'bg-rose-600',
+  'tool-json-query': 'bg-rose-600',
+  'tool-shell': 'bg-rose-600',
+  'tool-generate-id': 'bg-rose-600',
   default: 'bg-slate-500',
 }
 
