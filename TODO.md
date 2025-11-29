@@ -2,61 +2,48 @@
 
 ## ✅ Completed
 
-### Phase 1: Core App
+### Core App
 - [x] Visual workflow builder with drag-and-drop
 - [x] 11 built-in tool nodes
 - [x] AI Orchestrator (autonomous tool selection)
 - [x] Local LLM integration (llama.cpp)
 - [x] Templates system
 
-### Phase 2: Headless Execution
-- [x] Templates in main process
-- [x] Direct execution via WebSocket
-- [x] `workflow:runTemplate` command
+### APIs
+- [x] REST API on port 9998 (health, templates, run)
+- [x] WebSocket API on port 9999 (real-time streaming)
+- [x] Full schema discovery for templates
+- [x] Custom parameters support
 
-### Phase 3: REST API
-- [x] HTTP server on port 9998
-- [x] `GET /health`
-- [x] `GET /templates` - full schema discovery
-- [x] `GET /templates/:id`
-- [x] `POST /run` with custom params
-
-### Phase 4: Plugin System
+### Plugin System
 - [x] Auto-discovery from `~/.localflow/plugins/`
 - [x] Manifest-based tool definition
 - [x] Plugin tools work with orchestrator
 - [x] Hello-world example plugin
 
-### Phase 5: Documentation
+### Master AI Chat
+- [x] Chat interface in app
+- [x] System prompt with full platform knowledge
+- [x] Session memory (multi-turn conversations)
+- [x] Chat API for external access (POST /chat)
+
+### MCP Server
+- [x] MCP server package (mcp-server/)
+- [x] 4 tools: health, list_templates, run_workflow, chat
+- [x] Claude Desktop configuration instructions
+- [ ] Test with Claude Desktop (user testing)
+
+### Documentation
+- [x] README.md (complete overview)
 - [x] docs/REST_API.md
 - [x] docs/WEBSOCKET_API.md
+- [x] docs/CHAT_API.md
 - [x] PLUGIN_ARCHITECTURE.md
+- [x] mcp-server/README.md
 
 ---
 
 ## 🔲 TODO
-
-### Master AI Chat
-- [x] Chat interface in app (upgraded existing)
-- [x] System prompt with full platform knowledge
-- [x] Can see all nodes, tools, plugins, templates
-- [x] Can explain the system to users
-- [x] Can suggest workflow designs from descriptions
-- [x] Can build workflows from conversation (command blocks)
-- [x] Can run workflows via commands
-- [x] Remembers conversation context (session memory)
-- [x] Chat API for external access (POST /chat)
-- [ ] Improve command execution reliability (local model inconsistent)
-
-### MCP Server Integration
-- [x] Create MCP server package
-- [x] Expose `list_templates` as MCP tool
-- [x] Expose `run_workflow` as MCP tool  
-- [x] Expose `chat` as MCP tool (talk to Master AI)
-- [x] Expose `health` as MCP tool
-- [ ] Test with Claude Desktop
-- [x] Document MCP setup (mcp-server/README.md)
-- [x] Add to Claude Desktop config instructions
 
 ### Workflow Composability
 - [ ] Create `tool-workflow` node type
@@ -86,4 +73,3 @@
 - [ ] Result caching
 - [ ] Parallel tool execution
 - [ ] Custom tool creation UI
-- [ ] Visual workflow diff/history
