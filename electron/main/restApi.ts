@@ -126,41 +126,58 @@ export function initRestApi(window: BrowserWindow) {
         req.on('data', chunk => body += chunk)
         req.on('end', async () => {
           try {
-            const { templateId, params } = JSON.parse(body || '{}')
+            const { templateId, workflowId, params } = JSON.parse(body || '{}')
             
-            if (!templateId) {
+            let workflow: { id: string; name: string; nodes: any[]; edges: any[] } | null = null
+            
+            // Try templateId first, then workflowId
+            if (templateId) {
+              const template = getTemplate(templateId)
+              if (!template) {
+                res.writeHead(404)
+                res.end(JSON.stringify({ error: `Template not found: ${templateId}` }))
+                return
+              }
+              workflow = {
+                id: templateId,
+                name: template.name,
+                nodes: JSON.parse(JSON.stringify(template.nodes)),
+                edges: template.edges
+              }
+            } else if (workflowId) {
+              const saved = getWorkflow(workflowId)
+              if (!saved) {
+                res.writeHead(404)
+                res.end(JSON.stringify({ error: `Workflow not found: ${workflowId}` }))
+                return
+              }
+              workflow = {
+                id: workflowId,
+                name: saved.name,
+                nodes: JSON.parse(JSON.stringify(saved.nodes)),
+                edges: saved.edges
+              }
+            } else {
               res.writeHead(400)
-              res.end(JSON.stringify({ error: 'Missing templateId' }))
+              res.end(JSON.stringify({ error: 'Missing templateId or workflowId' }))
               return
             }
-
-            const template = getTemplate(templateId)
-            if (!template) {
-              res.writeHead(404)
-              res.end(JSON.stringify({ error: `Template not found: ${templateId}` }))
-              return
-            }
-
-            // Clone template nodes to avoid mutating original
-            const nodes = JSON.parse(JSON.stringify(template.nodes))
 
             // Apply custom params (e.g., override task text)
             if (params?.task) {
-              const inputNode = nodes.find((n: any) => n.data.type === 'text-input')
+              const inputNode = workflow.nodes.find((n: any) => n.data?.type === 'text-input')
               if (inputNode) {
+                inputNode.data.config = inputNode.data.config || {}
                 inputNode.data.config.text = params.task
               }
             }
 
-            console.log(`[REST API] Running template: ${template.name}`)
+            console.log(`[REST API] Running workflow: ${workflow.name}`)
             if (params?.task) {
               console.log(`[REST API] Custom task: ${params.task.substring(0, 50)}...`)
             }
             
-            const result = await executeWorkflow(
-              { id: templateId, name: template.name, nodes, edges: template.edges },
-              mainWindow
-            )
+            const result = await executeWorkflow(workflow, mainWindow)
 
             res.writeHead(200)
             res.end(JSON.stringify({ success: true, result }))

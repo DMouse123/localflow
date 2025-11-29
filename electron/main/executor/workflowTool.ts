@@ -108,20 +108,20 @@ export async function executeWorkflowTool(
       }
     }
     
-    // Priority 2: Debug node output
-    for (const [nodeId, output] of Object.entries(outputs)) {
-      if (nodeTypes[nodeId] === 'debug' && output) {
-        return { success: true, result: JSON.stringify(output) }
-      }
-    }
-    
-    // Priority 3: AI chat/transform response
+    // Priority 2: AI chat/transform response
     for (const [nodeId, output] of Object.entries(outputs)) {
       if ((nodeTypes[nodeId] === 'ai-chat' || nodeTypes[nodeId] === 'ai-transform') && output) {
         const response = (output as any).response || (output as any).output
         if (response) {
           return { success: true, result: response }
         }
+      }
+    }
+    
+    // Priority 3: Debug node output (only if it has actual content)
+    for (const [nodeId, output] of Object.entries(outputs)) {
+      if (nodeTypes[nodeId] === 'debug' && output && Object.keys(output as object).length > 0) {
+        return { success: true, result: JSON.stringify(output) }
       }
     }
     

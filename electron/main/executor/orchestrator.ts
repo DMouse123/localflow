@@ -80,7 +80,9 @@ RULES:
 - Call only ONE tool per response
 - Wait for RESULT before calling next tool
 - Use information from previous results in later tool calls
-- Only say DONE when task is fully complete`
+- Only say DONE when task is fully complete
+- To run another workflow, use: ACTION: run_workflow with INPUT: {"workflow_id": "wf_xxx", "input": "optional text"}
+- To see available workflows, use: ACTION: list_workflows with INPUT: {}`
 }
 
 // Parse LLM response to extract thought, action, input, or done
