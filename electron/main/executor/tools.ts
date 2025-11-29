@@ -616,6 +616,59 @@ export function initToolRegistry() {
   console.log('[Tools] Initialized with:', Array.from(toolRegistry.keys()))
 }
 
+// Register the run_workflow tool (added after other tools are initialized)
+export function registerWorkflowExecutionTool() {
+  // Import here to avoid circular dependency
+  const { executeWorkflowTool } = require('./workflowTool')
+  const { listWorkflows } = require('../workflowStorage')
+  
+  const workflowTool: Tool = {
+    name: 'run_workflow',
+    description: 'Runs a saved workflow by its ID. Use this to execute another workflow as a sub-task. First use list_workflows to see available workflows.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workflow_id: {
+          type: 'string',
+          description: 'The ID of the workflow to run (e.g., "wf_123456_abc")'
+        },
+        input: {
+          type: 'string',
+          description: 'Optional input text to pass to the workflow'
+        }
+      },
+      required: ['workflow_id']
+    },
+    execute: async (params) => {
+      return await executeWorkflowTool(params.workflow_id, params.input)
+    }
+  }
+  
+  const listWorkflowsTool: Tool = {
+    name: 'list_workflows',
+    description: 'Lists all saved workflows that can be run with run_workflow. Returns workflow IDs and names.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: []
+    },
+    execute: async () => {
+      const workflows = listWorkflows()
+      if (workflows.length === 0) {
+        return { success: true, workflows: [], message: 'No saved workflows' }
+      }
+      return { 
+        success: true, 
+        workflows: workflows.map(w => ({ id: w.id, name: w.name }))
+      }
+    }
+  }
+  
+  toolRegistry.set('run_workflow', workflowTool)
+  toolRegistry.set('list_workflows', listWorkflowsTool)
+  console.log('[Tools] Registered workflow tools: run_workflow, list_workflows')
+}
+
 // Get a tool by name
 export function getTool(name: string): Tool | undefined {
   return toolRegistry.get(name)
@@ -657,4 +710,5 @@ export default {
   getToolNames,
   registerTool,
   getToolDescriptionsForPrompt,
+  registerWorkflowExecutionTool,
 }

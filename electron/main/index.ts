@@ -5,7 +5,7 @@ import os from 'os'
 import LLMManager from './llm/manager'
 import { initClaudeControl, shutdown as shutdownClaudeControl } from './claudeControl'
 import { initRestApi, shutdownRestApi } from './restApi'
-import { initToolRegistry } from './executor/tools'
+import { initToolRegistry, registerWorkflowExecutionTool } from './executor/tools'
 import { registerOrchestratorNode } from './executor/orchestratorNode'
 import { loadAllPlugins } from './plugins/loader'
 import { registerPluginTools } from './plugins/registry'
@@ -74,6 +74,7 @@ app.whenReady().then(() => {
   
   // Initialize tool registry and orchestrator node
   initToolRegistry()
+  registerWorkflowExecutionTool()  // Enable workflow-to-workflow execution
   registerOrchestratorNode()
   
   createWindow()
