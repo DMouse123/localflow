@@ -207,15 +207,74 @@ export async function chat(sessionId: string | null, message: string): Promise<{
     response = `Error: ${err}`
   }
   
-  // Parse commands from response
+  // Parse commands from response - look for command blocks OR json blocks with action field
   const commands: any[] = []
+  
+  // Helper to extract commands from parsed JSON
+  const extractCommands = (parsed: any) => {
+    if (Array.isArray(parsed)) {
+      // Array of commands
+      for (const item of parsed) {
+        if (item && item.action) commands.push(item)
+      }
+    } else if (parsed && parsed.action) {
+      // Single command
+      commands.push(parsed)
+    }
+  }
+  
+  // Try ```command blocks first
   const commandRegex = /```command\n([\s\S]*?)\n```/g
   let match
   while ((match = commandRegex.exec(response)) !== null) {
     try {
-      commands.push(JSON.parse(match[1]))
+      // Try parsing as JSON
+      const parsed = JSON.parse(match[1])
+      extractCommands(parsed)
     } catch (e) {
-      console.error('[Chat] Failed to parse command:', match[1])
+      // Try parsing multiple JSON objects separated by commas or newlines
+      try {
+        const wrapped = '[' + match[1].replace(/}\s*,?\s*{/g, '},{') + ']'
+        const parsed = JSON.parse(wrapped)
+        extractCommands(parsed)
+      } catch (e2) {
+        console.error('[Chat] Failed to parse command block:', match[1])
+      }
+    }
+  }
+  
+  // Also try ```json blocks that contain action field
+  const jsonRegex = /```json\n([\s\S]*?)\n```/g
+  while ((match = jsonRegex.exec(response)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1])
+      extractCommands(parsed)
+    } catch (e) {
+      // Try wrapping multiple objects
+      try {
+        const wrapped = '[' + match[1].replace(/}\s*,?\s*{/g, '},{') + ']'
+        const parsed = JSON.parse(wrapped)
+        extractCommands(parsed)
+      } catch (e2) {
+        // Not valid, ignore
+      }
+    }
+  }
+  
+  // Also try bare ``` blocks
+  const bareRegex = /```\n([\s\S]*?)\n```/g
+  while ((match = bareRegex.exec(response)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1])
+      extractCommands(parsed)
+    } catch (e) {
+      try {
+        const wrapped = '[' + match[1].replace(/}\s*,?\s*{/g, '},{') + ']'
+        const parsed = JSON.parse(wrapped)
+        extractCommands(parsed)
+      } catch (e2) {
+        // Not valid, ignore
+      }
     }
   }
 

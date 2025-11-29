@@ -19,6 +19,7 @@ import { executeWorkflow } from './executor/engine'
 import { getAllTools } from './executor/tools'
 import { BrowserWindow } from 'electron'
 import { chat, listSessions, getHistory, deleteSession, createSession } from './chatSessions'
+import { executeCommands, getSessionWorkflow } from './commandExecutor'
 
 const REST_PORT = 9998
 let server: http.Server | null = null
@@ -171,7 +172,7 @@ export function initRestApi(window: BrowserWindow) {
         req.on('data', chunk => body += chunk)
         req.on('end', async () => {
           try {
-            const { sessionId, message } = JSON.parse(body || '{}')
+            const { sessionId, message, executeCommands: shouldExecute = true } = JSON.parse(body || '{}')
             
             if (!message) {
               res.writeHead(400)
@@ -182,8 +183,25 @@ export function initRestApi(window: BrowserWindow) {
             console.log(`[REST API] Chat: ${message.substring(0, 50)}...`)
             const result = await chat(sessionId || null, message)
 
+            // Execute any commands the AI returned
+            let commandResults: string[] = []
+            if (shouldExecute && result.commands.length > 0) {
+              console.log(`[REST API] Executing ${result.commands.length} commands...`)
+              commandResults = await executeCommands(result.sessionId, result.commands, mainWindow)
+            }
+
+            // Get current workflow state
+            const workflow = getSessionWorkflow(result.sessionId)
+
             res.writeHead(200)
-            res.end(JSON.stringify(result))
+            res.end(JSON.stringify({
+              ...result,
+              commandResults,
+              workflow: {
+                nodeCount: workflow.nodes.length,
+                edgeCount: workflow.edges.length
+              }
+            }))
           } catch (err) {
             res.writeHead(500)
             res.end(JSON.stringify({ error: String(err) }))
@@ -208,7 +226,7 @@ export function initRestApi(window: BrowserWindow) {
       }
 
       // GET /chat/:sessionId - Get chat history
-      if (req.method === 'GET' && path.startsWith('/chat/') && path !== '/chat/sessions') {
+      if (req.method === 'GET' && path.startsWith('/chat/') && !path.includes('/workflow') && path !== '/chat/sessions') {
         const sessionId = path.replace('/chat/', '')
         const history = getHistory(sessionId)
         if (history) {
@@ -227,6 +245,15 @@ export function initRestApi(window: BrowserWindow) {
         const deleted = deleteSession(sessionId)
         res.writeHead(200)
         res.end(JSON.stringify({ deleted }))
+        return
+      }
+
+      // GET /chat/:sessionId/workflow - Get workflow built in this session
+      if (req.method === 'GET' && path.match(/\/chat\/[^\/]+\/workflow$/)) {
+        const sessionId = path.replace('/chat/', '').replace('/workflow', '')
+        const workflow = getSessionWorkflow(sessionId)
+        res.writeHead(200)
+        res.end(JSON.stringify({ sessionId, workflow }))
         return
       }
 
