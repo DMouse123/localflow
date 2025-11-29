@@ -1,21 +1,26 @@
 # LocalFlow Architecture & Design Document
 
-> **Version:** 1.0
+> **Version:** 1.1
 > **Date:** November 29, 2025
-> **Status:** Foundation Complete, Plugin System Planned
+> **Status:** Foundation Complete, Building AI Orchestrator
 
 ---
 
 ## Table of Contents
 
 1. [Vision & Goals](#vision--goals)
-2. [Current Architecture](#current-architecture)
-3. [Plugin System Design](#plugin-system-design)
-4. [AI Orchestrator Design](#ai-orchestrator-design)
-5. [Node Specification](#node-specification)
-6. [Data Flow](#data-flow)
-7. [Development Rules](#development-rules)
-8. [Roadmap](#roadmap)
+2. [The Three Levels of AI](#the-three-levels-of-ai)
+3. [Current Architecture](#current-architecture)
+4. [Nodes vs Tools](#nodes-vs-tools)
+5. [Plugin System Design](#plugin-system-design)
+6. [AI Orchestrator Design](#ai-orchestrator-design)
+7. [Local API Server](#local-api-server)
+8. [AI Flow Designer](#ai-flow-designer)
+9. [MCP Compatibility](#mcp-compatibility)
+10. [Node Specification](#node-specification)
+11. [Data Flow](#data-flow)
+12. [Development Rules](#development-rules)
+13. [Roadmap](#roadmap)
 
 ---
 
@@ -27,6 +32,19 @@ A **visual workflow automation tool** with **local AI capabilities** that allows
 - Run AI models 100% locally (no cloud, no API keys)
 - Create automations that process data, call APIs, read/write files
 - Deploy AI agents that autonomously complete tasks using tools
+- Trigger workflows from external systems via local API
+- **Eventually:** Talk to the app to build workflows automatically
+
+### The Ultimate Goal
+```
+User: "Build me a workflow that monitors my inbox and summarizes important emails"
+
+LocalFlow AI: *creates the workflow, tests it, debugs issues, deploys it*
+
+User: "Run it every morning at 8am"
+
+LocalFlow AI: *adds schedule trigger, activates workflow*
+```
 
 ### Core Principles
 
@@ -37,12 +55,43 @@ A **visual workflow automation tool** with **local AI capabilities** that allows
 | **Extensible** | Plugins can add new nodes without modifying core |
 | **Sequential Execution** | One LLM call at a time (local constraint) |
 | **Open** | Open source, community-driven |
+| **Accessible** | Local API allows external triggering |
 
 ### Non-Goals (for now)
 - Cloud execution
 - Multi-user collaboration
 - Parallel LLM inference
 - Mobile apps
+
+---
+
+## The Three Levels of AI
+
+LocalFlow has three distinct levels of AI capability:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  LEVEL 3: AI FLOW DESIGNER (Future)                         │
+│  "Build me a workflow that..."                              │
+│  → AI creates, tests, debugs entire workflows               │
+├─────────────────────────────────────────────────────────────┤
+│  LEVEL 2: AI ORCHESTRATOR (Building Now)                    │
+│  "Complete this task..."                                    │
+│  → AI autonomously uses tools to accomplish goals           │
+├─────────────────────────────────────────────────────────────┤
+│  LEVEL 1: AI NODES (Complete ✅)                            │
+│  "Process this data..."                                     │
+│  → AI Chat, AI Transform - user wires them manually         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| Level | Name | What It Does | Status |
+|-------|------|--------------|--------|
+| 1 | AI Nodes | AI processes data within user-built workflows | ✅ Done |
+| 2 | AI Orchestrator | AI decides which tools to use to complete a task | 🔨 Building |
+| 3 | AI Flow Designer | AI builds/tests/debugs workflows from natural language | 🔲 Future |
+
+Each level builds on the previous. The Flow Designer will USE the Orchestrator, which USES AI Nodes.
 
 ---
 
@@ -102,24 +151,68 @@ localflow/
     └── plugins/                  # (FUTURE) Plugin directory
 ```
 
-### Current Node Registration (3 Places!)
+### Current Node Registration (3 Places - Known Issue)
 
 **Problem:** Nodes are defined in 3 separate places:
 
 1. **Backend** (`electron/main/executor/nodeTypes.ts`)
-   - `NodeTypeDefinition` interface
-   - `execute()` function
-   - `NODE_TYPES` registry
-
 2. **Sidebar** (`src/components/Sidebar/Sidebar.tsx`)
-   - `nodeCategories` object
-   - Icons, colors, labels
-
 3. **Properties** (`src/components/Panel/PropertiesPanel.tsx`)
-   - `NODE_CONFIGS` object
-   - Form field definitions
 
 **Impact:** Adding a new node requires editing 3 files.
+**Solution:** Plugin system will provide single source of truth.
+
+---
+
+## Nodes vs Tools
+
+This is a **critical distinction** in LocalFlow:
+
+### Nodes
+- Building blocks the **USER** wires together on the canvas
+- Connected manually with edges
+- Execute in the order determined by the workflow graph
+- Example: User drags HTTP Request node, connects to AI Chat, connects to Debug
+
+### Tools
+- Capabilities the **AI AGENT** can use autonomously
+- Agent decides when and how to use them
+- Execute in the order the AI determines
+- Example: Agent decides to call HTTP, then parse JSON, then calculate
+
+### The Overlap
+
+A node CAN be exposed as a tool:
+
+```
+┌─────────────────────────────────────────────────┐
+│              HTTP REQUEST                        │
+│                                                  │
+│   As NODE: User wires it in workflow            │
+│            [Trigger] → [HTTP] → [Debug]         │
+│                                                  │
+│   As TOOL: Agent uses it autonomously           │
+│            Agent thinks: "I need web data"      │
+│            Agent calls: http_request(url)       │
+│                                                  │
+└─────────────────────────────────────────────────┘
+```
+
+### Opt-in Tool Exposure
+
+Not every node should be a tool. Nodes can opt-in:
+
+```javascript
+{
+  id: 'http-request',
+  name: 'HTTP Request',
+  // ... other node properties
+  
+  // Tool exposure (optional)
+  canBeTool: true,
+  toolDescription: "Makes HTTP requests to fetch data from URLs or APIs"
+}
+```
 
 ---
 
@@ -130,6 +223,7 @@ localflow/
 - Drop plugin in folder → app loads it automatically
 - No core code modification needed
 - Plugins can be shared/distributed
+- Plugins can expose themselves as tools for AI Orchestrator
 
 ### Plugin Directory Structure
 
@@ -139,10 +233,7 @@ localflow/
 │   ├── manifest.json        # Plugin metadata
 │   ├── node.js              # Node implementation
 │   └── icon.svg             # (optional) Custom icon
-├── weather-api/
-│   ├── manifest.json
-│   └── node.js
-└── database-connector/
+└── weather-api/
     ├── manifest.json
     └── node.js
 ```
@@ -151,21 +242,21 @@ localflow/
 
 ```json
 {
-  "id": "my-custom-node",
-  "name": "My Custom Node",
+  "id": "weather-lookup",
+  "name": "Weather Lookup",
   "version": "1.0.0",
   "author": "Developer Name",
-  "description": "Does something useful",
+  "description": "Gets current weather for a city",
   "category": "data",
   "main": "node.js",
-  "icon": "icon.svg",
+  "icon": "cloud-sun",
   "color": "#3b82f6",
   
   "inputs": [
-    { "id": "input", "name": "Input", "type": "any" }
+    { "id": "city", "name": "City", "type": "string" }
   ],
   "outputs": [
-    { "id": "output", "name": "Output", "type": "any" }
+    { "id": "weather", "name": "Weather", "type": "object" }
   ],
   
   "config": [
@@ -173,42 +264,46 @@ localflow/
       "key": "apiKey",
       "label": "API Key",
       "type": "text",
-      "placeholder": "Enter API key...",
       "required": true
     },
     {
-      "key": "timeout",
-      "label": "Timeout (ms)",
-      "type": "number",
-      "default": 5000
+      "key": "units",
+      "label": "Units",
+      "type": "select",
+      "default": "celsius",
+      "options": [
+        { "value": "celsius", "label": "Celsius" },
+        { "value": "fahrenheit", "label": "Fahrenheit" }
+      ]
     }
-  ]
+  ],
+  
+  "tool": {
+    "enabled": true,
+    "description": "Gets current weather for a city. Input: city name. Output: temperature and conditions."
+  }
 }
 ```
 
 ### Plugin Implementation (`node.js`)
 
 ```javascript
-/**
- * Node execution function
- * 
- * @param {Object} inputs - Data from connected input nodes
- * @param {Object} config - User configuration from Properties panel
- * @param {Object} context - Execution context with utilities
- * @returns {Object} - Output data for connected nodes
- */
 module.exports = async function execute(inputs, config, context) {
-  // context provides:
-  // - context.log(message)        Log to output panel
-  // - context.llm.generateSync()  Call the local LLM
-  // - context.http(url, options)  Make HTTP requests
-  // - context.fs.read(path)       Read files (sandboxed)
-  // - context.fs.write(path,data) Write files (sandboxed)
+  const { city } = inputs;
+  const { apiKey, units } = config;
   
-  const result = await doSomething(inputs.input, config.apiKey);
+  context.log(`Fetching weather for ${city}...`);
+  
+  const response = await context.http(
+    `https://api.weather.com/current?city=${city}&key=${apiKey}&units=${units}`
+  );
   
   return {
-    output: result
+    weather: {
+      city,
+      temperature: response.temp,
+      conditions: response.conditions
+    }
   };
 };
 ```
@@ -221,13 +316,11 @@ App Startup
     ▼
 ┌─────────────────────────────────┐
 │ 1. Load Core Nodes              │
-│    (from nodeTypes.ts)          │
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
 │ 2. Scan ~/.localflow/plugins/   │
-│    Find all manifest.json       │
 └─────────────────────────────────┘
     │
     ▼
@@ -235,26 +328,16 @@ App Startup
 │ 3. For each plugin:             │
 │    - Validate manifest          │
 │    - Load node.js               │
-│    - Register in NODE_TYPES     │
-│    - Send to renderer           │
+│    - Register as node           │
+│    - If tool.enabled: register  │
+│      as tool for orchestrator   │
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
-│ 4. Renderer receives plugin list│
-│    - Add to Sidebar             │
-│    - Add to Properties configs  │
+│ 4. Send to renderer for UI      │
 └─────────────────────────────────┘
 ```
-
-### Security Considerations
-
-| Risk | Mitigation |
-|------|------------|
-| Malicious code execution | Plugins run in Node.js (same as core) - trust model same as npm packages |
-| File system access | Provide sandboxed `context.fs` that limits to allowed directories |
-| Network access | Allow but log all outbound requests |
-| LLM abuse | Rate limiting on `context.llm` calls |
 
 ---
 
@@ -262,122 +345,253 @@ App Startup
 
 ### Concept
 
-The AI Orchestrator is a **special node type** that:
+The AI Orchestrator is a **core node type** that:
 1. Receives a task/goal
-2. Has access to tools (other nodes/plugins)
-3. Uses an LLM to decide which tools to use
-4. Executes tools in sequence
+2. Has access to tools (core + plugins)
+3. Uses LLM to decide which tools to use
+4. Executes tools in sequence (local LLM constraint)
 5. Maintains memory of what it's done
 6. Returns final result when goal is complete
 
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    AI ORCHESTRATOR                       │
-│                                                          │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
-│  │    TASK     │    │   MEMORY    │    │   TOOLS     │  │
-│  │   (input)   │    │   (state)   │    │ (available) │  │
-│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘  │
-│         │                  │                   │         │
-│         ▼                  ▼                   ▼         │
-│  ┌─────────────────────────────────────────────────────┐│
-│  │                   REASONING LOOP                     ││
-│  │                                                      ││
-│  │   1. Look at task + memory                          ││
-│  │   2. Decide: done? or need action?                  ││
-│  │   3. If need action: pick tool + parameters         ││
-│  │   4. Execute tool                                   ││
-│  │   5. Store result in memory                         ││
-│  │   6. Repeat until done or max steps                 ││
-│  │                                                      ││
-│  └─────────────────────────────────────────────────────┘│
-│         │                                                │
-│         ▼                                                │
-│  ┌─────────────┐                                        │
-│  │   RESULT    │                                        │
-│  │  (output)   │                                        │
-│  └─────────────┘                                        │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Tool System
-
-Tools are nodes that the orchestrator can use. They must be:
-1. **Self-describing** - Have clear name, description, inputs, outputs
-2. **Stateless** - Same inputs always produce same outputs
-3. **Atomic** - Do one thing well
-
-```javascript
-// Tool registration for orchestrator
-const tools = {
-  calculator: {
-    name: "Calculator",
-    description: "Performs mathematical calculations. Input: math expression. Output: result.",
-    execute: (expression) => eval(expression) // simplified
-  },
-  http_get: {
-    name: "HTTP GET",
-    description: "Fetches data from a URL. Input: URL string. Output: response body.",
-    execute: async (url) => fetch(url).then(r => r.text())
-  },
-  file_read: {
-    name: "Read File",
-    description: "Reads content from a file. Input: file path. Output: file contents.",
-    execute: (path) => fs.readFileSync(path, 'utf-8')
-  }
-};
+┌─────────────────────────────────────────────────────────────┐
+│                      AI ORCHESTRATOR                         │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                    TOOL REGISTRY                      │   │
+│  │                                                       │   │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐    │   │
+│  │  │Calculator│ │HTTP GET │ │File Read│ │ Weather │    │   │
+│  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘    │   │
+│  │       ▲           ▲           ▲           ▲          │   │
+│  │       │           │           │           │          │   │
+│  │    [core]      [core]      [core]     [plugin]      │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                          │                                   │
+│                          ▼                                   │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                  REASONING LOOP                       │   │
+│  │                                                       │   │
+│  │   TASK: "Find Tokyo weather and save to file"        │   │
+│  │                                                       │   │
+│  │   Step 1: THINK → "I need weather data"              │   │
+│  │           ACT   → weather_lookup("Tokyo")            │   │
+│  │           OBSERVE → { temp: 22, conditions: sunny }  │   │
+│  │                                                       │   │
+│  │   Step 2: THINK → "Now save to file"                 │   │
+│  │           ACT   → file_write("/tmp/weather.txt", ..) │   │
+│  │           OBSERVE → success                          │   │
+│  │                                                       │   │
+│  │   Step 3: THINK → "Task complete"                    │   │
+│  │           DONE  → Return final answer                │   │
+│  │                                                       │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                          │                                   │
+│                          ▼                                   │
+│                      [RESULT]                                │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Memory Structure
 
 ```javascript
 {
-  // The original task
   task: "Find the weather in Tokyo and save it to a file",
   
-  // What the agent has done
   steps: [
     {
       thought: "I need to get weather data for Tokyo",
-      action: "http_get",
-      input: "https://api.weather.com/tokyo",
-      result: "{ temp: 22, condition: 'sunny' }",
+      action: "weather_lookup",
+      input: { city: "Tokyo" },
+      result: { temp: 22, conditions: "sunny" },
       timestamp: "2025-11-29T08:00:00Z"
     },
     {
       thought: "Now I need to save this to a file",
-      action: "file_write",
-      input: { path: "/tmp/tokyo-weather.txt", content: "22°C, sunny" },
-      result: "success",
+      action: "file_write", 
+      input: { path: "/tmp/weather.txt", content: "Tokyo: 22°C, sunny" },
+      result: { success: true },
       timestamp: "2025-11-29T08:00:01Z"
     }
   ],
   
-  // Current status
-  status: "complete", // or "in_progress", "error"
-  
-  // Final answer
-  result: "I found that Tokyo is 22°C and sunny, and saved this to /tmp/tokyo-weather.txt"
+  status: "complete",
+  result: "Weather saved to /tmp/weather.txt"
 }
 ```
 
-### Orchestrator as Core vs Plugin
+### Why Core (Not Plugin)
 
-**Decision: CORE**
-
-Reasons:
+The Orchestrator is **CORE** because:
 1. Fundamental to LocalFlow's value proposition
 2. Needs deep integration with LLM manager
-3. Needs to discover and use other plugins as tools
+3. Needs to discover and use plugins as tools
 4. Complex state management
-5. Should "just work" out of the box
+5. Foundation for Level 3 (Flow Designer)
 
-However, the orchestrator will USE the plugin system:
-- Plugins register as tools
-- Orchestrator discovers available tools
-- Users can enable/disable which tools agent can use
+---
+
+## Local API Server
+
+### Concept
+
+LocalFlow will run a local HTTP server that allows external systems to:
+- Trigger workflows
+- Check workflow status
+- Get workflow results
+- Manage workflows programmatically
+
+### Endpoints (Planned)
+
+```
+GET  /api/workflows              # List all workflows
+GET  /api/workflows/:id          # Get workflow details
+POST /api/workflows/:id/run      # Trigger workflow execution
+GET  /api/executions/:id         # Get execution status/results
+
+POST /api/webhooks/:hookId       # Webhook trigger endpoint
+```
+
+### Use Cases
+
+1. **Cron Jobs** - External scheduler hits `/api/workflows/daily-report/run`
+2. **Webhooks** - GitHub pushes to `/api/webhooks/github-deploy`
+3. **Other Apps** - Raycast/Alfred triggers `/api/workflows/quick-note/run`
+4. **Scripts** - CLI script calls API to run workflow
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                  LOCALFLOW                       │
+│                                                  │
+│   ┌──────────────────────────────────────────┐  │
+│   │           EXPRESS SERVER                  │  │
+│   │           localhost:3456                  │  │
+│   │                                           │  │
+│   │   /api/workflows/:id/run ──────────────┐ │  │
+│   │                                         │ │  │
+│   └─────────────────────────────────────────┼─┘  │
+│                                             │    │
+│   ┌─────────────────────────────────────────▼─┐  │
+│   │           WORKFLOW ENGINE                 │  │
+│   │                                           │  │
+│   │   Execute workflow, return results       │  │
+│   │                                           │  │
+│   └───────────────────────────────────────────┘  │
+│                                                  │
+└──────────────────────────────────────────────────┘
+         ▲
+         │ HTTP
+         │
+┌────────┴─────────┐
+│  External World  │
+│  - Cron jobs     │
+│  - Webhooks      │
+│  - Other apps    │
+│  - Scripts       │
+└──────────────────┘
+```
+
+---
+
+## AI Flow Designer
+
+### Concept (Future - Level 3)
+
+The ultimate goal: talk to LocalFlow in natural language to build workflows.
+
+```
+User: "I want a workflow that checks Hacker News every hour 
+       and sends me a Slack message if there's a post about AI 
+       with more than 100 points"
+
+Flow Designer:
+  1. Understands the requirement
+  2. Creates workflow with nodes:
+     - Schedule Trigger (every hour)
+     - HTTP Request (HN API)
+     - JSON Parse (extract posts)
+     - Loop (iterate posts)
+     - If/Else (check topic + points)
+     - Slack (send message)
+  3. Wires them together
+  4. Tests the workflow
+  5. Debugs any issues
+  6. Deploys and activates
+```
+
+### How It Will Work
+
+The Flow Designer will use:
+- **AI Orchestrator** to complete the meta-task of "building a workflow"
+- **Workflow Engine** as a tool to create/edit/run workflows
+- **Plugin System** to know what nodes are available
+- **Test Framework** to verify workflow works
+
+### Flow Designer Tools
+
+```javascript
+// Tools the Flow Designer will have
+{
+  create_workflow: "Creates a new empty workflow",
+  add_node: "Adds a node to the workflow",
+  connect_nodes: "Creates an edge between two nodes",
+  configure_node: "Sets configuration for a node",
+  run_workflow: "Executes the workflow",
+  get_workflow_result: "Gets output from last run",
+  debug_workflow: "Analyzes errors and suggests fixes"
+}
+```
+
+---
+
+## MCP Compatibility
+
+### What is MCP?
+
+Model Context Protocol (MCP) is Anthropic's standard for AI ↔ Tools communication. It defines how tools describe themselves and how AI calls them.
+
+### Why MCP-Compatible?
+
+1. Industry standard (Claude, other AI systems)
+2. Future-proof - can connect to external MCP servers
+3. Well-defined tool schema
+4. Enables interoperability
+
+### Our Approach
+
+Design tool interface to be **MCP-compatible** without requiring full MCP infrastructure:
+
+```javascript
+// MCP-compatible tool definition
+{
+  name: "http_get",
+  description: "Fetches data from a URL",
+  inputSchema: {
+    type: "object",
+    properties: {
+      url: { 
+        type: "string", 
+        description: "The URL to fetch" 
+      },
+      headers: {
+        type: "object",
+        description: "Optional HTTP headers"
+      }
+    },
+    required: ["url"]
+  }
+}
+```
+
+### Future: Full MCP Support
+
+Later we can add:
+- MCP Server mode (LocalFlow exposes tools to external AI)
+- MCP Client mode (LocalFlow connects to external MCP servers)
 
 ---
 
@@ -390,68 +604,31 @@ Every node (core or plugin) must conform to this interface:
 ```typescript
 interface NodeDefinition {
   // === IDENTITY ===
-  id: string;              // Unique identifier (e.g., "http-request")
-  name: string;            // Display name (e.g., "HTTP Request")
-  version: number;         // Version number for compatibility
+  id: string;
+  name: string;
+  version: number;
   
   // === CATEGORIZATION ===
   category: 'trigger' | 'ai' | 'data' | 'output' | 'control' | 'custom';
-  description: string;     // Short description for tooltip
+  description: string;
   
   // === UI ===
-  icon: string;            // Lucide icon name or path to SVG
-  color: string;           // Hex color for node accent
+  icon: string;
+  color: string;
   
   // === PORTS ===
-  inputs: Port[];          // Input connection points
-  outputs: Port[];         // Output connection points
+  inputs: Port[];
+  outputs: Port[];
   
   // === CONFIGURATION ===
-  config: ConfigField[];   // User-configurable fields
+  config: ConfigField[];
   
   // === EXECUTION ===
   execute: ExecuteFunction;
-}
-
-interface Port {
-  id: string;
-  name: string;
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any';
-  description?: string;
-}
-
-interface ConfigField {
-  key: string;
-  label: string;
-  type: 'text' | 'textarea' | 'number' | 'boolean' | 'select' | 'range';
-  default?: any;
-  required?: boolean;
-  placeholder?: string;
-  options?: { value: string; label: string }[];  // For select type
-  min?: number;           // For number/range
-  max?: number;           // For number/range
-  step?: number;          // For range
-}
-
-type ExecuteFunction = (
-  inputs: Record<string, any>,
-  config: Record<string, any>,
-  context: ExecutionContext
-) => Promise<Record<string, any>>;
-
-interface ExecutionContext {
-  log: (message: string) => void;
-  llm: {
-    generateSync: (prompt: string, options?: LLMOptions) => Promise<string>;
-  };
-  http: (url: string, options?: RequestOptions) => Promise<Response>;
-  fs: {
-    read: (path: string) => Promise<string>;
-    write: (path: string, content: string) => Promise<void>;
-    exists: (path: string) => Promise<boolean>;
-  };
-  workflowId: string;
-  nodeId: string;
+  
+  // === TOOL EXPOSURE (optional) ===
+  canBeTool?: boolean;
+  toolDescription?: string;
 }
 ```
 
@@ -467,51 +644,24 @@ User clicks RUN
        ▼
 ┌─────────────────────────────────┐
 │ 1. Validate workflow            │
-│    - All nodes connected?       │
-│    - Required configs set?      │
 └─────────────────────────────────┘
        │
        ▼
 ┌─────────────────────────────────┐
 │ 2. Topological sort             │
-│    - Determine execution order  │
-│    - Detect cycles (error)      │
 └─────────────────────────────────┘
        │
        ▼
 ┌─────────────────────────────────┐
 │ 3. Execute nodes in order       │
-│    For each node:               │
-│    a. Gather inputs from edges  │
-│    b. Get config from node data │
-│    c. Call execute() function   │
-│    d. Store outputs             │
-│    e. Send progress to UI       │
+│    - Send progress to UI        │
+│    - Visual feedback on canvas  │
 └─────────────────────────────────┘
        │
        ▼
 ┌─────────────────────────────────┐
 │ 4. Complete                     │
-│    - Send final status          │
-│    - Display outputs            │
 └─────────────────────────────────┘
-```
-
-### Data Between Nodes
-
-```javascript
-// Output from Node A
-{ 
-  response: "Hello world",
-  status: 200 
-}
-
-// Edge connects Node A (output: "response") to Node B (input: "text")
-
-// Input to Node B
-{
-  text: "Hello world"  // Mapped from response
-}
 ```
 
 ---
@@ -521,75 +671,71 @@ User clicks RUN
 ### For Core Development
 
 1. **Don't break existing nodes** - Maintain backwards compatibility
-2. **Keep node definitions together** - Work towards single source of truth
+2. **MCP-compatible tools** - Use standard schema
 3. **Document IPC channels** - Every new channel needs documentation
 4. **Test via CLI first** - Use test-cli before UI testing
 5. **Commit working code** - Don't push broken builds
 
 ### For Plugin Development
 
-1. **Use manifest.json** - Always include complete manifest
+1. **Use manifest.json** - Single source of truth
 2. **Handle errors gracefully** - Never throw unhandled exceptions
-3. **Document inputs/outputs** - Be explicit about what node expects
+3. **Document inputs/outputs** - Be explicit
 4. **Keep it focused** - One node = one responsibility
-5. **No global state** - Plugins must be stateless between executions
-
-### Code Style
-
-- TypeScript for core code
-- JavaScript allowed for plugins (lower barrier)
-- Use async/await (no callbacks)
-- Meaningful variable names
-- Comments for complex logic
+5. **Opt-in to tool exposure** - Only if it makes sense
 
 ---
 
 ## Roadmap
 
-### Phase 1: Current State ✅
+### Phase 1: Foundation ✅
 - [x] Visual canvas with React Flow
 - [x] Core nodes (trigger, text, ai-chat, ai-transform, debug)
 - [x] Data nodes (http, file-read, file-write, json-parse, loop)
-- [x] Basic AI Agent (ReAct with calculator/datetime)
-- [x] LLM integration (Llama 3.2 local)
+- [x] Basic AI Agent (ReAct pattern)
+- [x] LLM integration (Llama local)
 - [x] Workflow save/load
 - [x] Execution engine
-- [x] Output panel
 - [x] Node status visualization
 
-### Phase 2: Plugin System 🔲
-- [ ] Design plugin manifest schema
-- [ ] Create plugin loader in main process
-- [ ] Send plugin data to renderer via IPC
-- [ ] Dynamic sidebar from plugins
-- [ ] Dynamic properties panel from plugins
-- [ ] Sample plugin template
-- [ ] Plugin documentation
-
-### Phase 3: AI Orchestrator 🔲
-- [ ] Design orchestrator node
-- [ ] Tool registry system
+### Phase 2: AI Orchestrator 🔨 (Current)
+- [ ] Tool registry system (MCP-compatible)
+- [ ] Core tools (calculator, http, file, datetime)
 - [ ] Memory/state management
-- [ ] Reasoning loop implementation
+- [ ] Reasoning loop (Think → Act → Observe)
+- [ ] Orchestrator node UI
 - [ ] Tool discovery from plugins
-- [ ] Max steps / timeout handling
-- [ ] Orchestrator UI (show thinking)
 
-### Phase 4: Advanced Features 🔲
-- [ ] Trigger types (webhook, schedule, file watch)
-- [ ] Conditional branching (if/else node)
-- [ ] Sub-workflows (workflow as node)
-- [ ] Variables / global state
-- [ ] Undo/redo
-- [ ] Dark mode
-- [ ] Workflow templates library
+### Phase 3: Plugin System 🔲
+- [ ] Plugin manifest schema
+- [ ] Plugin loader
+- [ ] Dynamic UI from plugins
+- [ ] Sample plugin template
+- [ ] Plugin as tool integration
 
-### Phase 5: Polish & Distribution 🔲
-- [ ] Installer packages (Mac, Windows, Linux)
+### Phase 4: Local API Server 🔲
+- [ ] Express server in Electron
+- [ ] REST endpoints for workflows
+- [ ] Webhook trigger support
+- [ ] API authentication
+
+### Phase 5: Advanced Triggers 🔲
+- [ ] Schedule trigger (cron)
+- [ ] File watch trigger
+- [ ] Webhook trigger
+- [ ] App event triggers
+
+### Phase 6: AI Flow Designer 🔲
+- [ ] Workflow manipulation tools
+- [ ] Natural language → workflow
+- [ ] Auto-test and debug
+- [ ] Conversational refinement
+
+### Phase 7: Polish & Distribution 🔲
+- [ ] Installers (Mac, Windows, Linux)
 - [ ] Auto-update
-- [ ] Plugin marketplace concept
 - [ ] Documentation site
-- [ ] Tutorial videos
+- [ ] Plugin marketplace concept
 
 ---
 
@@ -601,13 +747,9 @@ User clicks RUN
 |---------|-----------|---------|
 | `llm:list-models` | R→M | Get available models |
 | `llm:load-model` | R→M | Load a model |
-| `llm:generate` | R→M | Generate text (streaming) |
-| `llm:generation-chunk` | M→R | Stream chunk |
-| `workflow:save` | R→M | Save workflow to disk |
-| `workflow:load` | R→M | Load workflow from disk |
+| `llm:generate` | R→M | Generate text |
 | `workflow:execute` | R→M | Run workflow |
-| `workflow:node-progress` | M→R | Node status update |
-| `workflow:log` | M→R | Log message |
+| `workflow:node-progress` | M→R | Node status |
 | `app:quit` | R→M | Quit app |
 | `app:restart` | R→M | Restart app |
 
@@ -622,4 +764,4 @@ User clicks RUN
 
 ---
 
-*This document should be updated as architecture evolves.*
+*Document version 1.1 - Updated with full vision including Three Levels of AI, Local API Server, and AI Flow Designer concepts.*
