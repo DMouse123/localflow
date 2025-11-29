@@ -11,6 +11,11 @@
  *   GET  /chat/sessions       - List chat sessions
  *   GET  /chat/:sessionId     - Get chat history
  *   DELETE /chat/:sessionId   - Delete chat session
+ *   GET  /workflows           - List saved workflows
+ *   GET  /workflows/:id       - Get a workflow
+ *   POST /workflows           - Save a workflow
+ *   PUT  /workflows/:id       - Update a workflow
+ *   DELETE /workflows/:id     - Delete a workflow
  */
 
 import http from 'http'
@@ -20,6 +25,7 @@ import { getAllTools } from './executor/tools'
 import { BrowserWindow } from 'electron'
 import { chat, listSessions, getHistory, deleteSession, createSession } from './chatSessions'
 import { executeCommands, getSessionWorkflow } from './commandExecutor'
+import { listWorkflows, getWorkflow, saveWorkflow, deleteWorkflow, renameWorkflow, duplicateWorkflow } from './workflowStorage'
 
 const REST_PORT = 9998
 let server: http.Server | null = null
@@ -254,6 +260,107 @@ export function initRestApi(window: BrowserWindow) {
         const workflow = getSessionWorkflow(sessionId)
         res.writeHead(200)
         res.end(JSON.stringify({ sessionId, workflow }))
+        return
+      }
+
+      // ============ WORKFLOW STORAGE ENDPOINTS ============
+
+      // GET /workflows - List all saved workflows
+      if (req.method === 'GET' && path === '/workflows') {
+        const workflows = listWorkflows()
+        res.writeHead(200)
+        res.end(JSON.stringify({ workflows }))
+        return
+      }
+
+      // GET /workflows/:id - Get a specific workflow
+      if (req.method === 'GET' && path.startsWith('/workflows/')) {
+        const id = path.replace('/workflows/', '')
+        const workflow = getWorkflow(id)
+        if (workflow) {
+          res.writeHead(200)
+          res.end(JSON.stringify(workflow))
+        } else {
+          res.writeHead(404)
+          res.end(JSON.stringify({ error: `Workflow not found: ${id}` }))
+        }
+        return
+      }
+
+      // POST /workflows - Save a new workflow
+      if (req.method === 'POST' && path === '/workflows') {
+        let body = ''
+        req.on('data', chunk => body += chunk)
+        req.on('end', async () => {
+          try {
+            const { name, nodes, edges, description } = JSON.parse(body || '{}')
+            
+            if (!name) {
+              res.writeHead(400)
+              res.end(JSON.stringify({ error: 'Missing name' }))
+              return
+            }
+            if (!nodes || !Array.isArray(nodes)) {
+              res.writeHead(400)
+              res.end(JSON.stringify({ error: 'Missing or invalid nodes array' }))
+              return
+            }
+
+            const workflow = saveWorkflow(name, nodes, edges || [], description)
+            res.writeHead(201)
+            res.end(JSON.stringify(workflow))
+          } catch (err) {
+            res.writeHead(500)
+            res.end(JSON.stringify({ error: String(err) }))
+          }
+        })
+        return
+      }
+
+      // PUT /workflows/:id - Update an existing workflow
+      if (req.method === 'PUT' && path.startsWith('/workflows/')) {
+        const id = path.replace('/workflows/', '')
+        let body = ''
+        req.on('data', chunk => body += chunk)
+        req.on('end', async () => {
+          try {
+            const existing = getWorkflow(id)
+            if (!existing) {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: `Workflow not found: ${id}` }))
+              return
+            }
+
+            const { name, nodes, edges, description } = JSON.parse(body || '{}')
+            
+            const workflow = saveWorkflow(
+              name || existing.name,
+              nodes || existing.nodes,
+              edges || existing.edges,
+              description !== undefined ? description : existing.description,
+              id
+            )
+            res.writeHead(200)
+            res.end(JSON.stringify(workflow))
+          } catch (err) {
+            res.writeHead(500)
+            res.end(JSON.stringify({ error: String(err) }))
+          }
+        })
+        return
+      }
+
+      // DELETE /workflows/:id - Delete a workflow
+      if (req.method === 'DELETE' && path.startsWith('/workflows/')) {
+        const id = path.replace('/workflows/', '')
+        const deleted = deleteWorkflow(id)
+        if (deleted) {
+          res.writeHead(200)
+          res.end(JSON.stringify({ deleted: true, id }))
+        } else {
+          res.writeHead(404)
+          res.end(JSON.stringify({ error: `Workflow not found: ${id}` }))
+        }
         return
       }
 

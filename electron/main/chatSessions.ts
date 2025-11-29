@@ -95,6 +95,31 @@ To clear canvas:
 {"action": "clear"}
 \`\`\`
 
+To save current workflow:
+\`\`\`command
+{"action": "saveWorkflow", "name": "My Workflow", "description": "Optional description"}
+\`\`\`
+
+To load a saved workflow:
+\`\`\`command
+{"action": "loadWorkflow", "id": "wf_123456"}
+\`\`\`
+
+To list saved workflows:
+\`\`\`command
+{"action": "listWorkflows"}
+\`\`\`
+
+To delete a saved workflow:
+\`\`\`command
+{"action": "deleteWorkflow", "id": "wf_123456"}
+\`\`\`
+
+To rename a workflow:
+\`\`\`command
+{"action": "renameWorkflow", "id": "wf_123456", "name": "New Name"}
+\`\`\`
+
 ## Guidelines
 - Be helpful and concise
 - When user describes what they want, suggest a workflow design

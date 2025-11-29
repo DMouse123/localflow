@@ -6,6 +6,7 @@
 import { getTemplate, listTemplates } from './templates'
 import { executeWorkflow } from './executor/engine'
 import { BrowserWindow } from 'electron'
+import { saveWorkflow, getWorkflow, listWorkflows, deleteWorkflow, renameWorkflow } from './workflowStorage'
 
 interface WorkflowState {
   nodes: any[]
@@ -163,6 +164,88 @@ export async function executeCommand(
       return { 
         success: true, 
         result: JSON.stringify({ nodes: state.nodes, edges: state.edges }, null, 2)
+      }
+    }
+    
+    // ============ PERSISTENCE COMMANDS ============
+    
+    case 'saveWorkflow': {
+      if (!command.name) {
+        return { success: false, result: 'Missing workflow name' }
+      }
+      if (state.nodes.length === 0) {
+        return { success: false, result: 'No workflow to save. Add some nodes first.' }
+      }
+      
+      const saved = saveWorkflow(command.name, state.nodes, state.edges, command.description)
+      return { 
+        success: true, 
+        result: `Saved workflow "${saved.name}" (${saved.id})` 
+      }
+    }
+    
+    case 'loadWorkflow': {
+      if (!command.id) {
+        return { success: false, result: 'Missing workflow ID' }
+      }
+      
+      const workflow = getWorkflow(command.id)
+      if (!workflow) {
+        return { success: false, result: `Workflow not found: ${command.id}` }
+      }
+      
+      state.nodes = JSON.parse(JSON.stringify(workflow.nodes))
+      state.edges = JSON.parse(JSON.stringify(workflow.edges))
+      
+      // Find highest node ID
+      let maxId = 0
+      for (const node of state.nodes) {
+        const match = node.id.match(/(\d+)/)
+        if (match) maxId = Math.max(maxId, parseInt(match[1]))
+      }
+      state.nextNodeId = maxId + 1
+      
+      mainWindow?.webContents.send('workflow:load', workflow)
+      
+      return { 
+        success: true, 
+        result: `Loaded workflow "${workflow.name}" (${state.nodes.length} nodes)` 
+      }
+    }
+    
+    case 'listWorkflows': {
+      const workflows = listWorkflows()
+      if (workflows.length === 0) {
+        return { success: true, result: 'No saved workflows yet.' }
+      }
+      
+      const list = workflows.map(w => `- ${w.name} (${w.id})`).join('\n')
+      return { success: true, result: `Saved workflows:\n${list}` }
+    }
+    
+    case 'deleteWorkflow': {
+      if (!command.id) {
+        return { success: false, result: 'Missing workflow ID' }
+      }
+      
+      const deleted = deleteWorkflow(command.id)
+      if (deleted) {
+        return { success: true, result: `Deleted workflow: ${command.id}` }
+      } else {
+        return { success: false, result: `Workflow not found: ${command.id}` }
+      }
+    }
+    
+    case 'renameWorkflow': {
+      if (!command.id || !command.name) {
+        return { success: false, result: 'Missing workflow ID or new name' }
+      }
+      
+      const renamed = renameWorkflow(command.id, command.name)
+      if (renamed) {
+        return { success: true, result: `Renamed workflow to: ${renamed.name}` }
+      } else {
+        return { success: false, result: `Workflow not found: ${command.id}` }
       }
     }
     
