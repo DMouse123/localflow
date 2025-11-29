@@ -50,12 +50,12 @@
 ## 🔲 TODO
 
 ### Persistence (Workflow Save/Load)
-- [ ] Save workflow to disk (~/.localflow/workflows/)
-- [ ] Load saved workflows
-- [ ] Rename workflows
-- [ ] Delete workflows
-- [ ] List saved workflows via API
-- [ ] Master AI commands: save, load, rename, delete, list
+- [x] Save workflow to disk (~/.localflow/workflows/)
+- [x] Load saved workflows
+- [x] Rename workflows
+- [x] Delete workflows
+- [x] List saved workflows via API
+- [x] Master AI commands: save, load, rename, delete, list
 - [ ] UI for workflow management
 
 ### Workflow Composability
