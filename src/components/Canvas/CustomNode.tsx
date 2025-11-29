@@ -7,8 +7,12 @@ import {
   Zap, 
   Database,
   Settings,
+  CheckCircle,
+  XCircle,
+  Loader2,
   type LucideIcon 
 } from 'lucide-react'
+import { useExecutionStore } from '../../stores/executionStore'
 
 // Icon mapping for different node types
 const nodeIcons: Record<string, LucideIcon> = {
@@ -36,15 +40,23 @@ interface CustomNodeData {
   config?: Record<string, unknown>
 }
 
-function CustomNode({ data, selected }: NodeProps<CustomNodeData>) {
+function CustomNode({ id, data, selected }: NodeProps<CustomNodeData>) {
   const Icon = nodeIcons[data.type] || nodeIcons.default
   const colorClass = nodeColors[data.type] || nodeColors.default
+  const nodeState = useExecutionStore(state => state.nodeStates[id] || 'idle')
+
+  // Determine state class
+  const stateClass = nodeState === 'running' ? 'node-running' 
+                   : nodeState === 'complete' ? 'node-complete'
+                   : nodeState === 'error' ? 'node-error'
+                   : ''
 
   return (
     <div
       className={`
         px-4 py-3 shadow-lg rounded-lg border-2 bg-white min-w-[150px]
         ${selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'}
+        ${stateClass}
         transition-all duration-150
       `}
     >
@@ -63,6 +75,17 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeData>) {
         <span className="font-medium text-sm text-slate-700">
           {data.label}
         </span>
+        
+        {/* Status indicator */}
+        {nodeState === 'running' && (
+          <Loader2 className="w-4 h-4 text-blue-500 animate-spin ml-auto" />
+        )}
+        {nodeState === 'complete' && (
+          <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+        )}
+        {nodeState === 'error' && (
+          <XCircle className="w-4 h-4 text-red-500 ml-auto" />
+        )}
       </div>
 
       {/* Output Handle */}

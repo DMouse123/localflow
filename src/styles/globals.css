@@ -56,3 +56,40 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Node execution states */
+@keyframes node-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+  }
+}
+
+@keyframes node-success-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+.node-running {
+  animation: node-pulse 1s ease-in-out infinite;
+  border-color: #3b82f6 !important;
+}
+
+.node-complete {
+  animation: node-success-flash 0.6s ease-out;
+  border-color: #22c55e !important;
+}
+
+.node-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
+}

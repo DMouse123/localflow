@@ -6,11 +6,14 @@ interface LogEntry {
   type: 'info' | 'success' | 'error' | 'node'
 }
 
+type NodeStatus = 'idle' | 'running' | 'complete' | 'error'
+
 interface ExecutionState {
   isRunning: boolean
   isPanelOpen: boolean
   logs: LogEntry[]
   runningNodeId: string | null
+  nodeStates: Record<string, NodeStatus>
   
   // Actions
   startExecution: () => void
@@ -18,6 +21,8 @@ interface ExecutionState {
   addLog: (message: string, type?: LogEntry['type']) => void
   clearLogs: () => void
   setRunningNode: (nodeId: string | null) => void
+  setNodeState: (nodeId: string, status: NodeStatus) => void
+  resetNodeStates: () => void
   openPanel: () => void
   closePanel: () => void
   togglePanel: () => void
@@ -30,9 +35,10 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
   isPanelOpen: false,
   logs: [],
   runningNodeId: null,
+  nodeStates: {},
 
   startExecution: () => {
-    set({ isRunning: true, isPanelOpen: true })
+    set({ isRunning: true, isPanelOpen: true, nodeStates: {} })
     get().addLog('Starting workflow execution...', 'info')
   },
 
@@ -49,6 +55,12 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
   clearLogs: () => set({ logs: [] }),
 
   setRunningNode: (nodeId) => set({ runningNodeId: nodeId }),
+  
+  setNodeState: (nodeId, status) => set(state => ({
+    nodeStates: { ...state.nodeStates, [nodeId]: status }
+  })),
+  
+  resetNodeStates: () => set({ nodeStates: {} }),
 
   openPanel: () => set({ isPanelOpen: true }),
   closePanel: () => set({ isPanelOpen: false }),
@@ -68,10 +80,13 @@ if (typeof window !== 'undefined' && window.electron) {
     
     if (status === 'running') {
       store.setRunningNode(nodeId)
+      store.setNodeState(nodeId, 'running')
       store.addLog(`Executing node: ${nodeId}`, 'node')
     } else if (status === 'complete') {
+      store.setNodeState(nodeId, 'complete')
       store.addLog(`Node complete: ${nodeId}`, 'success')
     } else if (status === 'error') {
+      store.setNodeState(nodeId, 'error')
       store.addLog(`Node error: ${nodeId}`, 'error')
     }
   })
