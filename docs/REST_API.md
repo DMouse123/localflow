@@ -160,3 +160,11 @@ curl -s -X POST http://localhost:9998/run \
 For real-time progress streaming, connect to: `ws://localhost:9999`
 
 See [WEBSOCKET_API.md](./WEBSOCKET_API.md) for details.
+
+---
+
+## Chat API
+
+Talk to the Master AI with conversation memory: `POST /chat`
+
+See [CHAT_API.md](./CHAT_API.md) for details.
