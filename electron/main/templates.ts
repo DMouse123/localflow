@@ -99,4 +99,68 @@ export function listTemplates(): { id: string; name: string; icon: string }[] {
   return WORKFLOW_TEMPLATES.map(t => ({ id: t.id, name: t.name, icon: t.icon }))
 }
 
-export default { WORKFLOW_TEMPLATES, getTemplate, listTemplates }
+// Get template schema for discovery (what inputs/tools/outputs it has)
+export function getTemplateSchema(id: string): any | undefined {
+  const template = getTemplate(id)
+  if (!template) return undefined
+
+  // Find the text-input node (main input)
+  const inputNode = template.nodes.find(n => n.data.type === 'text-input')
+  
+  // Find the orchestrator node
+  const orchestratorNode = template.nodes.find(n => n.data.type === 'ai-orchestrator')
+  
+  // Find connected tools by looking at edges going INTO orchestrator's tools handle
+  const toolNodes = template.nodes.filter(n => n.data.type.startsWith('tool-'))
+  const connectedTools = toolNodes.map(t => {
+    // Extract tool name from type (e.g., 'tool-ai-name' -> 'ai_name_generator')
+    const toolType = t.data.type
+    const toolNameMap: Record<string, string> = {
+      'tool-ai-name': 'ai_name_generator',
+      'tool-ai-color': 'ai_color_picker',
+      'tool-ai-trait': 'ai_trait_generator',
+      'tool-ai-backstory': 'ai_backstory',
+      'tool-calculator': 'calculator',
+      'tool-datetime': 'datetime',
+      'tool-generate-id': 'generate_id',
+      'tool-http': 'http_get',
+      'tool-file-read': 'file_read',
+      'tool-file-write': 'file_write',
+      'tool-file-list': 'file_list',
+      'tool-math-advanced': 'math_advanced',
+      'tool-string-ops': 'string_ops',
+      'tool-json-query': 'json_query',
+      'tool-shell': 'shell',
+    }
+    return toolNameMap[toolType] || toolType.replace('tool-', '')
+  })
+
+  return {
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    icon: template.icon,
+    inputs: {
+      task: {
+        type: 'string',
+        required: false,
+        default: inputNode?.data.config?.text || '',
+        description: 'The task or prompt for the workflow'
+      }
+    },
+    tools: connectedTools,
+    maxSteps: orchestratorNode?.data.config?.maxSteps || 10,
+    outputs: {
+      result: { type: 'string', description: 'Final result from the workflow' },
+      steps: { type: 'array', description: 'Array of tool calls and their results' },
+      logs: { type: 'array', description: 'Execution logs' }
+    }
+  }
+}
+
+// List all templates with full schema
+export function listTemplatesWithSchema(): any[] {
+  return WORKFLOW_TEMPLATES.map(t => getTemplateSchema(t.id))
+}
+
+export default { WORKFLOW_TEMPLATES, getTemplate, listTemplates, getTemplateSchema, listTemplatesWithSchema }

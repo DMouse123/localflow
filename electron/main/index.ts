@@ -4,6 +4,7 @@ import fs from 'fs'
 import os from 'os'
 import LLMManager from './llm/manager'
 import { initClaudeControl, shutdown as shutdownClaudeControl } from './claudeControl'
+import { initRestApi, shutdownRestApi } from './restApi'
 import { initToolRegistry } from './executor/tools'
 import { registerOrchestratorNode } from './executor/orchestratorNode'
 
@@ -71,6 +72,7 @@ app.whenReady().then(() => {
   // Initialize Claude Remote Control after window is created
   if (mainWindow) {
     initClaudeControl(mainWindow)
+    initRestApi(mainWindow)
     
     // Send auto-load signal after window is ready
     mainWindow.webContents.on('did-finish-load', () => {
@@ -85,6 +87,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   shutdownClaudeControl()
+  shutdownRestApi()
   if (process.platform !== 'darwin') {
     app.quit()
   }
