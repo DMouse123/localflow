@@ -7,6 +7,10 @@
  *   GET  /templates           - List all templates
  *   GET  /templates/:id       - Get template details
  *   POST /run                 - Run a workflow { templateId: string }
+ *   POST /chat                - Chat with Master AI { sessionId?, message }
+ *   GET  /chat/sessions       - List chat sessions
+ *   GET  /chat/:sessionId     - Get chat history
+ *   DELETE /chat/:sessionId   - Delete chat session
  */
 
 import http from 'http'
@@ -14,6 +18,7 @@ import { getTemplate, listTemplates, getTemplateSchema, listTemplatesWithSchema 
 import { executeWorkflow } from './executor/engine'
 import { getAllTools } from './executor/tools'
 import { BrowserWindow } from 'electron'
+import { chat, listSessions, getHistory, deleteSession, createSession } from './chatSessions'
 
 const REST_PORT = 9998
 let server: http.Server | null = null
@@ -157,6 +162,71 @@ export function initRestApi(window: BrowserWindow) {
             res.end(JSON.stringify({ error: String(err) }))
           }
         })
+        return
+      }
+
+      // POST /chat - Send message to Master AI
+      if (req.method === 'POST' && path === '/chat') {
+        let body = ''
+        req.on('data', chunk => body += chunk)
+        req.on('end', async () => {
+          try {
+            const { sessionId, message } = JSON.parse(body || '{}')
+            
+            if (!message) {
+              res.writeHead(400)
+              res.end(JSON.stringify({ error: 'Missing message' }))
+              return
+            }
+
+            console.log(`[REST API] Chat: ${message.substring(0, 50)}...`)
+            const result = await chat(sessionId || null, message)
+
+            res.writeHead(200)
+            res.end(JSON.stringify(result))
+          } catch (err) {
+            res.writeHead(500)
+            res.end(JSON.stringify({ error: String(err) }))
+          }
+        })
+        return
+      }
+
+      // GET /chat/sessions - List all chat sessions
+      if (req.method === 'GET' && path === '/chat/sessions') {
+        res.writeHead(200)
+        res.end(JSON.stringify({ sessions: listSessions() }))
+        return
+      }
+
+      // POST /chat/new - Create new session explicitly
+      if (req.method === 'POST' && path === '/chat/new') {
+        const session = createSession()
+        res.writeHead(200)
+        res.end(JSON.stringify({ sessionId: session.id }))
+        return
+      }
+
+      // GET /chat/:sessionId - Get chat history
+      if (req.method === 'GET' && path.startsWith('/chat/') && path !== '/chat/sessions') {
+        const sessionId = path.replace('/chat/', '')
+        const history = getHistory(sessionId)
+        if (history) {
+          res.writeHead(200)
+          res.end(JSON.stringify({ sessionId, messages: history }))
+        } else {
+          res.writeHead(404)
+          res.end(JSON.stringify({ error: 'Session not found' }))
+        }
+        return
+      }
+
+      // DELETE /chat/:sessionId - Delete session
+      if (req.method === 'DELETE' && path.startsWith('/chat/')) {
+        const sessionId = path.replace('/chat/', '')
+        const deleted = deleteSession(sessionId)
+        res.writeHead(200)
+        res.end(JSON.stringify({ deleted }))
         return
       }
 
