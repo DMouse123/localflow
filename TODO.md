@@ -10,7 +10,7 @@
 - [x] Templates system
 
 ### APIs
-- [x] REST API on port 9998 (health, templates, run)
+- [x] REST API on port 9998 (health, templates, run, chat)
 - [x] WebSocket API on port 9999 (real-time streaming)
 - [x] Full schema discovery for templates
 - [x] Custom parameters support
@@ -30,16 +30,15 @@
 - [x] Workflow state tracking per session
 - [x] GET /chat/:sessionId/workflow endpoint
 - [x] Parser handles multiple command formats
-- [ ] **Small local model inconsistently outputs commands** - works sometimes, not always
+- [x] Works reliably with Qwen 2.5 3B (function-calling model)
 
 ### MCP Server
 - [x] MCP server package (mcp-server/)
 - [x] 4 tools: health, list_templates, run_workflow, chat
 - [x] Claude Desktop configuration instructions
-- [ ] Test with Claude Desktop (user testing)
 
 ### Documentation
-- [x] README.md (complete overview)
+- [x] README.md
 - [x] docs/REST_API.md
 - [x] docs/WEBSOCKET_API.md
 - [x] docs/CHAT_API.md
@@ -50,31 +49,40 @@
 
 ## 🔲 TODO
 
+### Persistence (Workflow Save/Load)
+- [ ] Save workflow to disk (~/.localflow/workflows/)
+- [ ] Load saved workflows
+- [ ] Rename workflows
+- [ ] Delete workflows
+- [ ] List saved workflows via API
+- [ ] Master AI commands: save, load, rename, delete, list
+- [ ] UI for workflow management
+
 ### Workflow Composability
 - [ ] Create `tool-workflow` node type
 - [ ] Allow workflows to call other workflows
 - [ ] Pass outputs between workflows
 - [ ] Test nested workflow execution
 
-### Persistence
-- [ ] Save custom workflows to disk (~/.localflow/workflows/)
-- [ ] Load saved workflows via API
-- [ ] `GET /workflows` - list saved workflows
-- [ ] `POST /workflows` - save new workflow
-- [ ] `DELETE /workflows/:id`
-- [ ] Save/load in UI
-
 ### UI Improvements
 - [ ] Fix edge animation bug (BUGLIST.md)
-- [ ] Improve debug node output display
 - [ ] Plugin tools in sidebar
+- [ ] Better debug node output display
+
+### Testing
+- [ ] Test MCP server with Claude Desktop
 
 ---
 
-## Ideas / Future
-- [ ] Webhook triggers (run workflow on HTTP POST)
-- [ ] Scheduled workflows (cron-like)
+## Notes
+
+**Model Requirement:** Use Qwen 2.5 3B or another model with function-calling capability. Smaller models (1B, 1.7B) are inconsistent at outputting command JSON.
+
+---
+
+## Future Ideas
+- [ ] Webhook triggers
+- [ ] Scheduled workflows (cron)
 - [ ] Workflow versioning
 - [ ] Result caching
 - [ ] Parallel tool execution
-- [ ] Custom tool creation UI

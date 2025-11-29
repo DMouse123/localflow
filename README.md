@@ -37,6 +37,8 @@ A conversational interface that knows the entire system. Ask it to explain, desi
 ### 🧠 Local LLM
 Runs Llama 3.2, Qwen, SmolLM models locally via llama.cpp. Download models in-app.
 
+**Recommended:** Use **Qwen 2.5 3B** for best results with the Master AI Chat (has function-calling capability).
+
 ---
 
 ## Quick Start
@@ -142,13 +144,13 @@ localflow/
 - ✅ Plugin system (auto-discovery)
 - ✅ REST API with schema discovery
 - ✅ WebSocket real-time streaming
-- ✅ Master AI Chat (with session memory)
+- ✅ Master AI Chat (builds workflows from conversation)
 - ✅ MCP Server (Claude Desktop integration)
 
 ## What's Next
 
+- 🔲 Persistence (save/load/rename/delete workflows)
 - 🔲 Workflow-to-workflow (composable agents)
-- 🔲 Persistence (save/load custom workflows)
 - 🔲 UI polish
 
 ---
