@@ -1,6 +1,6 @@
 # LocalFlow Architecture & Design Document
 
-> **Version:** 1.1
+> **Version:** 1.2
 > **Date:** November 29, 2025
 > **Status:** Foundation Complete, Building AI Orchestrator
 
@@ -11,16 +11,17 @@
 1. [Vision & Goals](#vision--goals)
 2. [The Three Levels of AI](#the-three-levels-of-ai)
 3. [Current Architecture](#current-architecture)
-4. [Nodes vs Tools](#nodes-vs-tools)
-5. [Plugin System Design](#plugin-system-design)
-6. [AI Orchestrator Design](#ai-orchestrator-design)
-7. [Local API Server](#local-api-server)
-8. [AI Flow Designer](#ai-flow-designer)
-9. [MCP Compatibility](#mcp-compatibility)
-10. [Node Specification](#node-specification)
-11. [Data Flow](#data-flow)
-12. [Development Rules](#development-rules)
-13. [Roadmap](#roadmap)
+4. [Core LLM Queue System](#core-llm-queue-system)
+5. [Nodes vs Tools](#nodes-vs-tools)
+6. [Plugin System Design](#plugin-system-design)
+7. [AI Orchestrator Design](#ai-orchestrator-design)
+8. [Local API Server](#local-api-server)
+9. [AI Flow Designer](#ai-flow-designer)
+10. [MCP Compatibility](#mcp-compatibility)
+11. [Node Specification](#node-specification)
+12. [Data Flow](#data-flow)
+13. [Development Rules](#development-rules)
+14. [Roadmap](#roadmap)
 
 ---
 
@@ -161,6 +162,90 @@ localflow/
 
 **Impact:** Adding a new node requires editing 3 files.
 **Solution:** Plugin system will provide single source of truth.
+
+---
+
+## Core LLM Queue System
+
+### Critical Constraint: One In, One Out
+
+LocalFlow runs a **single local LLM instance**. This means:
+- Only ONE LLM call can process at a time
+- All requests must queue
+- Sequential execution, no parallelism
+
+This is both a **feature** (simple, predictable, low resource) and a **constraint** we must design around.
+
+### Why This Matters
+
+When we have multiple sources of LLM requests:
+- User clicks "Run" on a workflow
+- Scheduled task fires at 8am
+- Webhook triggers a workflow
+- AI Orchestrator needs multiple reasoning steps
+- Future: AI Flow Designer building workflows
+
+They ALL share the same LLM. They ALL must queue.
+
+### Two Levels of State
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│   LEVEL 1: ORCHESTRATOR MEMORY (per-task)                  │
+│   "What have I done on THIS task? What's next?"            │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ Task: "Find weather and save"                        │  │
+│   │ Steps: [step1 ✓, step2 ✓, step3 pending]            │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   LEVEL 2: CORE LLM QUEUE (system-wide)                    │
+│   "What requests are waiting for the LLM?"                 │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ Queue:                                               │  │
+│   │   [Scheduled task - 8am report] → waiting           │  │
+│   │   [Webhook - GitHub push] → waiting                 │  │
+│   │   [Orchestrator step 3] → waiting                   │  │
+│   │   [User workflow] → PROCESSING                      │  │
+│   │                                                      │  │
+│   │              ↓ One at a time ↓                       │  │
+│   │                                                      │  │
+│   │              [LLM INSTANCE]                          │  │
+│   │                                                      │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Queue Behavior
+
+| Scenario | Behavior |
+|----------|----------|
+| User runs workflow while another is running | Queued, runs after current completes |
+| Scheduled task fires during user workflow | Queued with priority rules |
+| Orchestrator needs 5 LLM calls | Each call queues individually |
+| Webhook triggers while queue is full | Queued, webhook caller may timeout |
+
+### Priority System (Planned)
+
+```
+HIGH:   User-initiated (clicked Run)
+MEDIUM: Scheduled tasks
+LOW:    Background operations
+```
+
+### Implementation Location
+
+The LLM Queue will be a **core system component** in:
+```
+electron/main/llm/queue.ts    # New file
+```
+
+It wraps `manager.ts` and ensures all LLM access goes through the queue.
 
 ---
 
