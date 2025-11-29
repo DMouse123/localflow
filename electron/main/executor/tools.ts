@@ -372,7 +372,7 @@ const shellTool: Tool = {
     properties: {
       command: {
         type: 'string',
-        description: 'The shell command to execute'
+        description: 'The shell command to execute, e.g., "ls /tmp" or "date"'
       }
     },
     required: ['command']
@@ -382,7 +382,17 @@ const shellTool: Tool = {
     const allowedCommands = ['ls', 'cat', 'head', 'tail', 'wc', 'grep', 'find', 'echo', 'pwd', 'whoami', 'date', 'uname']
     
     try {
-      const cmd = params.command.trim()
+      // Handle various input formats
+      let cmd = params.command || params.raw || params.cmd || ''
+      if (typeof cmd !== 'string') {
+        cmd = String(cmd)
+      }
+      cmd = cmd.replace(/`/g, '').trim()  // Remove backticks
+      
+      if (!cmd) {
+        return { success: false, error: 'No command provided. Use {"command": "ls /tmp"}' }
+      }
+      
       const firstWord = cmd.split(' ')[0]
       
       if (!allowedCommands.includes(firstWord)) {
@@ -416,7 +426,9 @@ const generateIdTool: Tool = {
     required: ['type']
   },
   execute: async (params) => {
-    const { type, length = 8 } = params
+    // Handle various input formats
+    const type = params.type || params.raw || 'uuid'
+    const length = params.length || 8
     let result: string
     
     switch (type) {
@@ -435,7 +447,7 @@ const generateIdTool: Tool = {
         result = Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
         break
       default:
-        return { success: false, error: `Unknown type: ${type}` }
+        return { success: false, error: `Unknown type: ${type}. Use: uuid, timestamp, or random` }
     }
     
     return { success: true, id: result }

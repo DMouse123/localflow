@@ -244,4 +244,118 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: 'e6-7', source: 'node_6', target: 'node_7' }
     ]
   },
+
+  {
+    id: 'ai-orchestrator-full',
+    name: 'AI Orchestrator (All Tools)',
+    description: 'Autonomous AI agent with all tools connected',
+    icon: '🧠',
+    nodes: [
+      // Trigger
+      {
+        id: 'trigger_1',
+        type: 'custom',
+        position: { x: 50, y: 200 },
+        data: { label: 'Start', type: 'trigger', config: {} }
+      },
+      // Task input
+      {
+        id: 'task_1',
+        type: 'custom',
+        position: { x: 200, y: 200 },
+        data: { 
+          label: 'Task', 
+          type: 'text-input', 
+          config: { text: 'Calculate the square root of 144, then tell me today\'s date.' } 
+        }
+      },
+      // AI Orchestrator
+      {
+        id: 'orchestrator_1',
+        type: 'custom',
+        position: { x: 400, y: 200 },
+        data: { 
+          label: 'AI Agent', 
+          type: 'ai-orchestrator', 
+          config: { 
+            maxSteps: 10,
+            systemPrompt: 'You are a helpful assistant. Use your tools to complete tasks step by step. Think carefully about which tool to use.'
+          } 
+        }
+      },
+      // Debug output
+      {
+        id: 'debug_1',
+        type: 'custom',
+        position: { x: 650, y: 200 },
+        data: { label: 'Result', type: 'debug', config: {} }
+      },
+      // === TOOLS (connected to orchestrator) ===
+      // Row 1
+      {
+        id: 'tool_calc',
+        type: 'custom',
+        position: { x: 200, y: 380 },
+        data: { label: 'Calculator', type: 'tool-calculator', config: {} }
+      },
+      {
+        id: 'tool_math',
+        type: 'custom',
+        position: { x: 330, y: 380 },
+        data: { label: 'Math Advanced', type: 'tool-math-advanced', config: {} }
+      },
+      {
+        id: 'tool_datetime',
+        type: 'custom',
+        position: { x: 460, y: 380 },
+        data: { label: 'Date/Time', type: 'tool-datetime', config: {} }
+      },
+      {
+        id: 'tool_string',
+        type: 'custom',
+        position: { x: 590, y: 380 },
+        data: { label: 'String Ops', type: 'tool-string-ops', config: {} }
+      },
+      // Row 2
+      {
+        id: 'tool_http',
+        type: 'custom',
+        position: { x: 200, y: 480 },
+        data: { label: 'HTTP', type: 'tool-http', config: {} }
+      },
+      {
+        id: 'tool_json',
+        type: 'custom',
+        position: { x: 330, y: 480 },
+        data: { label: 'JSON Query', type: 'tool-json-query', config: {} }
+      },
+      {
+        id: 'tool_shell',
+        type: 'custom',
+        position: { x: 460, y: 480 },
+        data: { label: 'Shell', type: 'tool-shell', config: {} }
+      },
+      {
+        id: 'tool_genid',
+        type: 'custom',
+        position: { x: 590, y: 480 },
+        data: { label: 'Generate ID', type: 'tool-generate-id', config: {} }
+      }
+    ],
+    edges: [
+      // Data flow
+      { id: 'e_trig_task', source: 'trigger_1', target: 'task_1' },
+      { id: 'e_task_orch', source: 'task_1', target: 'orchestrator_1' },
+      { id: 'e_orch_debug', source: 'orchestrator_1', target: 'debug_1' },
+      // Tool connections (all connect to orchestrator's tools port)
+      { id: 'e_tool_calc', source: 'tool_calc', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_tool_math', source: 'tool_math', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_tool_datetime', source: 'tool_datetime', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_tool_string', source: 'tool_string', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_tool_http', source: 'tool_http', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_tool_json', source: 'tool_json', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_tool_shell', source: 'tool_shell', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_tool_genid', source: 'tool_genid', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' }
+    ]
+  },
 ]
