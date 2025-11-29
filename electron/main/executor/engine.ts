@@ -99,13 +99,19 @@ function topologicalSort(nodes: WorkflowNode[], edges: WorkflowEdge[]): Workflow
 
 /**
  * Find tools connected to a node's "tools" handle
- * Returns array of tool schemas from connected tool nodes
+ * Returns array of tool info including schemas and node IDs
  */
+interface ConnectedToolInfo {
+  schema: ToolSchema
+  nodeId: string
+  toolName: string
+}
+
 function getConnectedTools(
   nodeId: string, 
   workflow: Workflow
-): ToolSchema[] {
-  const connectedTools: ToolSchema[] = []
+): ConnectedToolInfo[] {
+  const connectedTools: ConnectedToolInfo[] = []
   
   // Find edges targeting this node's "tools" handle
   const toolEdges = workflow.edges.filter(
@@ -121,7 +127,11 @@ function getConnectedTools(
     const nodeType = getNodeType(sourceNode.data.type)
     if (!nodeType?.toolSchema) continue
     
-    connectedTools.push(nodeType.toolSchema)
+    connectedTools.push({
+      schema: nodeType.toolSchema,
+      nodeId: sourceNode.id,
+      toolName: nodeType.toolSchema.name
+    })
   }
   
   return connectedTools
@@ -224,9 +234,13 @@ export async function executeWorkflow(
         if (node.data.type === 'ai-orchestrator') {
           const connectedTools = getConnectedTools(node.id, workflow)
           if (connectedTools.length > 0) {
-            // Pass connected tools as a special config property
-            config._connectedTools = connectedTools
-            log(`Orchestrator has ${connectedTools.length} connected tools: ${connectedTools.map(t => t.name).join(', ')}`)
+            // Pass connected tools info (includes node IDs for progress updates)
+            config._connectedTools = connectedTools.map(t => t.schema)
+            config._toolNodeMap = Object.fromEntries(
+              connectedTools.map(t => [t.toolName, t.nodeId])
+            )
+            config._sendProgress = sendProgress  // Pass progress function
+            log(`Orchestrator has ${connectedTools.length} connected tools: ${connectedTools.map(t => t.toolName).join(', ')}`)
           } else {
             log(`Orchestrator has no connected tools - using config.tools fallback`)
           }

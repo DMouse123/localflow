@@ -202,7 +202,8 @@ export async function loadModel(modelId: string, window: BrowserWindow): Promise
 
     const modelPath = path.join(MODELS_DIR, modelInfo.filename)
     model = await llama.loadModel({ modelPath })
-    context = await model.createContext()
+    // Create context with multiple sequences so orchestrator + tools can run concurrently
+    context = await model.createContext({ sequences: 4 })
 
     state.loading = null
     state.loaded = modelId
@@ -316,6 +317,61 @@ export async function generateSync(
   }
 }
 
+// ============ PERSISTENT SESSION FOR ORCHESTRATOR ============
+// Keeps conversation history in the LLM's context
+
+let orchestratorSession: any = null
+let orchestratorSequence: any = null
+
+export async function createOrchestratorSession(systemPrompt: string): Promise<void> {
+  if (!model || !context) {
+    throw new Error('No model loaded')
+  }
+  
+  // Dispose existing session if any
+  await disposeOrchestratorSession()
+  
+  const { LlamaChatSession } = await import('node-llama-cpp')
+  
+  orchestratorSequence = context.getSequence()
+  orchestratorSession = new LlamaChatSession({
+    contextSequence: orchestratorSequence,
+    systemPrompt,
+  })
+  
+  console.log('[LLM] Orchestrator session created')
+}
+
+export async function orchestratorPrompt(
+  prompt: string,
+  options: { maxTokens?: number; temperature?: number } = {}
+): Promise<string> {
+  if (!orchestratorSession) {
+    throw new Error('No orchestrator session - call createOrchestratorSession first')
+  }
+  
+  const { maxTokens = 150, temperature = 0.3 } = options
+  
+  try {
+    const response = await orchestratorSession.prompt(prompt, { maxTokens, temperature })
+    return response
+  } catch (error) {
+    console.error('[LLM] Orchestrator prompt failed:', error)
+    throw error
+  }
+}
+
+export async function disposeOrchestratorSession(): Promise<void> {
+  if (orchestratorSession) {
+    orchestratorSession = null
+  }
+  if (orchestratorSequence) {
+    orchestratorSequence.dispose()
+    orchestratorSequence = null
+  }
+  console.log('[LLM] Orchestrator session disposed')
+}
+
 // Check if model is loaded
 export function isModelLoaded(): boolean {
   return model !== null && context !== null
@@ -333,4 +389,8 @@ export default {
   generate,
   generateSync,
   isModelLoaded,
+  // Orchestrator session management
+  createOrchestratorSession,
+  orchestratorPrompt,
+  disposeOrchestratorSession,
 }

@@ -853,6 +853,92 @@ const toolGenerateId: NodeTypeDefinition = {
   }
 }
 
+// AI Personality Tool Nodes
+const toolAiNameGenerator: NodeTypeDefinition = {
+  id: 'tool-ai-name',
+  name: 'AI Name Generator',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'ai_name_generator',
+    description: 'Generates a creative character name.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        style: { type: 'string', description: 'Style: fantasy, scifi, modern, medieval' }
+      },
+      required: ['style']
+    }
+  }
+}
+
+const toolAiColorPicker: NodeTypeDefinition = {
+  id: 'tool-ai-color',
+  name: 'AI Color Picker',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'ai_color_picker',
+    description: 'Generates a color description for a character.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        context: { type: 'string', description: 'Context: hair color, eye color, armor color' }
+      },
+      required: ['context']
+    }
+  }
+}
+
+const toolAiTraitGenerator: NodeTypeDefinition = {
+  id: 'tool-ai-trait',
+  name: 'AI Trait Generator',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'ai_trait_generator',
+    description: 'Generates a personality trait for a character.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', description: 'Type: positive, negative, quirky' }
+      },
+      required: ['type']
+    }
+  }
+}
+
+const toolAiBackstory: NodeTypeDefinition = {
+  id: 'tool-ai-backstory',
+  name: 'AI Backstory',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'ai_backstory',
+    description: 'Generates a short backstory for a character.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Character name' },
+        hint: { type: 'string', description: 'Optional hint about the character' }
+      },
+      required: ['name']
+    }
+  }
+}
+
 // ============ NODE REGISTRY ============
 
 export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
@@ -880,6 +966,11 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
   'tool-json-query': toolJsonQuery,
   'tool-shell': toolShell,
   'tool-generate-id': toolGenerateId,
+  // AI Personality tool nodes
+  'tool-ai-name': toolAiNameGenerator,
+  'tool-ai-color': toolAiColorPicker,
+  'tool-ai-trait': toolAiTraitGenerator,
+  'tool-ai-backstory': toolAiBackstory,
 }
 
 // Note: AI Orchestrator is registered separately via registerOrchestratorNode()

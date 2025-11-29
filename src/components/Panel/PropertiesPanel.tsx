@@ -102,6 +102,11 @@ const NODE_CONFIGS: Record<string, { fields: FieldConfig[] }> = {
   'tool-json-query': { fields: [], hint: '🔧 Query JSON using dot notation: user.name, items.0.title' },
   'tool-shell': { fields: [], hint: '🔧 Safe commands: ls, cat, head, tail, wc, grep, find, echo, pwd, date' },
   'tool-generate-id': { fields: [], hint: '🔧 Generate: uuid, timestamp, or random string' },
+  // AI Personality tools
+  'tool-ai-name': { fields: [], hint: '🎭 Generates creative character names (fantasy, scifi, modern, medieval)' },
+  'tool-ai-color': { fields: [], hint: '🎨 Generates color descriptions (hair, eyes, armor, etc.)' },
+  'tool-ai-trait': { fields: [], hint: '✨ Generates personality traits (positive, negative, quirky)' },
+  'tool-ai-backstory': { fields: [], hint: '📖 Generates short character backstories' },
 }
 
 interface FieldConfig {

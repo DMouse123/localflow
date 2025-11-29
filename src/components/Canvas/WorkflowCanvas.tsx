@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect, useMemo } from 'react'
 import {
   ReactFlow,
   Background,
@@ -10,6 +10,7 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { useWorkflowStore, WorkflowNode } from '../../stores/workflowStore'
+import { useExecutionStore } from '../../stores/executionStore'
 import CustomNode from './CustomNode'
 
 const nodeTypes = {
@@ -31,6 +32,21 @@ export default function WorkflowCanvas() {
     deleteSelectedNodes,
     saveWorkflow,
   } = useWorkflowStore()
+
+  const isRunning = useExecutionStore(state => state.isRunning)
+
+  // Add animation to edges only when running
+  const animatedEdges = useMemo(() => {
+    return edges.map(edge => ({
+      ...edge,
+      animated: isRunning,
+      style: { 
+        stroke: edge.targetHandle === 'tools' ? '#f43f5e' : '#64748b', 
+        strokeWidth: 2,
+        strokeDasharray: edge.targetHandle === 'tools' ? '5,5' : undefined,
+      },
+    }))
+  }, [edges, isRunning])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -105,7 +121,7 @@ export default function WorkflowCanvas() {
     <div ref={reactFlowWrapper} className="w-full h-full">
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={animatedEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -119,7 +135,7 @@ export default function WorkflowCanvas() {
         snapToGrid
         snapGrid={[15, 15]}
         defaultEdgeOptions={{
-          animated: true,
+          animated: false,
           style: { stroke: '#64748b', strokeWidth: 2 },
         }}
       >

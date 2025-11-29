@@ -7,6 +7,7 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
+import LLMManager from '../llm/manager'
 
 // MCP-compatible tool interface
 export interface ToolInputSchema {
@@ -43,8 +44,16 @@ const calculatorTool: Tool = {
   },
   execute: async (params) => {
     try {
+      // Handle various input formats
+      let expr = params.expression || params.expr || params.raw || ''
+      if (typeof expr !== 'string') {
+        expr = String(expr)
+      }
+      if (!expr) {
+        return { success: false, error: 'Missing expression parameter' }
+      }
       // Safe math evaluation (no eval)
-      const expr = params.expression
+      expr = expr
         .replace(/[^0-9+\-*/().%\s]/g, '')
         .replace(/%/g, '/100*')
       const result = Function(`"use strict"; return (${expr})`)()
@@ -454,6 +463,126 @@ const generateIdTool: Tool = {
   }
 }
 
+// ============ AI PERSONALITY TOOLS ============
+// These tools use the LLM with focused prompts to generate specific content
+
+const aiNameGeneratorTool: Tool = {
+  name: 'ai_name_generator',
+  description: 'Generates a creative character name. Use this when you need a name for a character.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      style: {
+        type: 'string',
+        description: 'Style of name: fantasy, scifi, modern, medieval, or any other style'
+      }
+    },
+    required: ['style']
+  },
+  execute: async (params) => {
+    try {
+      const style = params.style || 'fantasy'
+      const response = await LLMManager.generateSync(
+        `Generate a single ${style} character name. Just the name, nothing else.`,
+        { maxTokens: 20, temperature: 0.9 }
+      )
+      const name = response.trim().split('\n')[0].replace(/['"]/g, '')
+      return { success: true, name }
+    } catch (error) {
+      return { success: false, error: `Name generation failed: ${error}` }
+    }
+  }
+}
+
+const aiColorPickerTool: Tool = {
+  name: 'ai_color_picker',
+  description: 'Generates a color description for a character. Use this when you need colors for a character.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      context: {
+        type: 'string',
+        description: 'Context for the color, e.g., "hair color", "armor color", "eye color"'
+      }
+    },
+    required: ['context']
+  },
+  execute: async (params) => {
+    try {
+      const context = params.context || 'main color'
+      const response = await LLMManager.generateSync(
+        `Describe a ${context} in 2-4 words. Just the color description, nothing else. Be creative.`,
+        { maxTokens: 20, temperature: 0.9 }
+      )
+      const color = response.trim().split('\n')[0].replace(/['"]/g, '')
+      return { success: true, color }
+    } catch (error) {
+      return { success: false, error: `Color generation failed: ${error}` }
+    }
+  }
+}
+
+const aiTraitGeneratorTool: Tool = {
+  name: 'ai_trait_generator',
+  description: 'Generates a personality trait for a character. Use this when you need personality traits.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      type: {
+        type: 'string',
+        description: 'Type of trait: positive, negative, quirky, or any'
+      }
+    },
+    required: ['type']
+  },
+  execute: async (params) => {
+    try {
+      const type = params.type || 'any'
+      const response = await LLMManager.generateSync(
+        `Give me a single ${type} personality trait in 2-5 words. Just the trait, nothing else.`,
+        { maxTokens: 20, temperature: 0.9 }
+      )
+      const trait = response.trim().split('\n')[0].replace(/['"]/g, '')
+      return { success: true, trait }
+    } catch (error) {
+      return { success: false, error: `Trait generation failed: ${error}` }
+    }
+  }
+}
+
+const aiBackstoryTool: Tool = {
+  name: 'ai_backstory',
+  description: 'Generates a short backstory for a character. Use this when you need a character backstory.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      name: {
+        type: 'string',
+        description: 'Character name to include in backstory'
+      },
+      hint: {
+        type: 'string',
+        description: 'Optional hint about the character (their trait, role, etc.)'
+      }
+    },
+    required: ['name']
+  },
+  execute: async (params) => {
+    try {
+      const name = params.name || 'the character'
+      const hint = params.hint || ''
+      const prompt = hint 
+        ? `Write a 1-2 sentence backstory for ${name} who is ${hint}. Just the backstory.`
+        : `Write a 1-2 sentence backstory for ${name}. Just the backstory.`
+      const response = await LLMManager.generateSync(prompt, { maxTokens: 80, temperature: 0.8 })
+      const backstory = response.trim()
+      return { success: true, backstory }
+    } catch (error) {
+      return { success: false, error: `Backstory generation failed: ${error}` }
+    }
+  }
+}
+
 // ============ TOOL REGISTRY ============
 
 const BUILT_IN_TOOLS: Tool[] = [
@@ -469,6 +598,11 @@ const BUILT_IN_TOOLS: Tool[] = [
   jsonQueryTool,
   shellTool,
   generateIdTool,
+  // AI Personality tools
+  aiNameGeneratorTool,
+  aiColorPickerTool,
+  aiTraitGeneratorTool,
+  aiBackstoryTool,
 ]
 
 // Registry holds all available tools

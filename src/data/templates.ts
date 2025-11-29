@@ -358,4 +358,75 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: 'e_tool_genid', source: 'tool_genid', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' }
     ]
   },
+
+  {
+    id: 'ai-orchestrator-test',
+    name: 'AI Orchestrator Test (Must Use Tools)',
+    description: 'Task that REQUIRES tools - model cannot answer from memory',
+    icon: '🧪',
+    nodes: [
+      { id: 'trigger_1', type: 'custom', position: { x: 50, y: 200 }, data: { label: 'Start', type: 'trigger', config: {} } },
+      { id: 'task_1', type: 'custom', position: { x: 200, y: 200 }, data: { label: 'Task', type: 'text-input', config: { text: 'What is 847 times 293? Then generate a UUID for me.' } } },
+      { id: 'orchestrator_1', type: 'custom', position: { x: 450, y: 200 }, data: { label: 'AI Agent', type: 'ai-orchestrator', config: { maxSteps: 10 } } },
+      { id: 'debug_1', type: 'custom', position: { x: 700, y: 200 }, data: { label: 'Result', type: 'debug', config: {} } },
+      { id: 'tool_calc', type: 'custom', position: { x: 350, y: 380 }, data: { label: 'Calculator', type: 'tool-calculator', config: {} } },
+      { id: 'tool_genid', type: 'custom', position: { x: 550, y: 380 }, data: { label: 'Generate ID', type: 'tool-generate-id', config: {} } }
+    ],
+    edges: [
+      { id: 'e1', source: 'trigger_1', target: 'task_1' },
+      { id: 'e2', source: 'task_1', target: 'orchestrator_1' },
+      { id: 'e3', source: 'orchestrator_1', target: 'debug_1' },
+      { id: 'e_calc', source: 'tool_calc', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_genid', source: 'tool_genid', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' }
+    ]
+  },
+
+  {
+    id: 'ai-orchestrator-fetch-calc',
+    name: 'AI Agent: Fetch + Calculate',
+    description: 'Fetch a number from API then do math on it - MUST use both tools',
+    icon: '🔢',
+    nodes: [
+      { id: 'trigger_1', type: 'custom', position: { x: 50, y: 200 }, data: { label: 'Start', type: 'trigger', config: {} } },
+      { id: 'task_1', type: 'custom', position: { x: 200, y: 200 }, data: { label: 'Task', type: 'text-input', config: { text: 'Fetch data from https://api.coindesk.com/v1/bpi/currentprice.json and tell me the USD rate multiplied by 2.' } } },
+      { id: 'orchestrator_1', type: 'custom', position: { x: 480, y: 200 }, data: { label: 'AI Agent', type: 'ai-orchestrator', config: { maxSteps: 10 } } },
+      { id: 'debug_1', type: 'custom', position: { x: 730, y: 200 }, data: { label: 'Result', type: 'debug', config: {} } },
+      { id: 'tool_http', type: 'custom', position: { x: 380, y: 380 }, data: { label: 'HTTP Fetch', type: 'tool-http', config: {} } },
+      { id: 'tool_calc', type: 'custom', position: { x: 580, y: 380 }, data: { label: 'Calculator', type: 'tool-calculator', config: {} } }
+    ],
+    edges: [
+      { id: 'e1', source: 'trigger_1', target: 'task_1' },
+      { id: 'e2', source: 'task_1', target: 'orchestrator_1' },
+      { id: 'e3', source: 'orchestrator_1', target: 'debug_1' },
+      { id: 'e_http', source: 'tool_http', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_calc', source: 'tool_calc', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' }
+    ]
+  },
+
+  {
+    id: 'ai-character-builder',
+    name: 'AI Character Builder',
+    description: 'Build a character using multiple AI tools - name, colors, traits, backstory',
+    icon: '🎭',
+    nodes: [
+      { id: 'trigger_1', type: 'custom', position: { x: 50, y: 220 }, data: { label: 'Start', type: 'trigger', config: {} } },
+      { id: 'task_1', type: 'custom', position: { x: 200, y: 220 }, data: { label: 'Task', type: 'text-input', config: { text: 'Create a fantasy character. Use these tools IN ORDER:\n1. ai_name_generator (style: fantasy) - get name\n2. ai_color_picker (context: hair color) - get hair\n3. ai_color_picker (context: eye color) - get eyes\n4. ai_trait_generator (type: positive) - get trait\n5. ai_backstory (name: use the name from step 1) - get backstory\n\nAfter using ALL 5 tools, say DONE with all the results.' } } },
+      { id: 'orchestrator_1', type: 'custom', position: { x: 480, y: 220 }, data: { label: 'Character Builder', type: 'ai-orchestrator', config: { maxSteps: 12 } } },
+      { id: 'debug_1', type: 'custom', position: { x: 750, y: 220 }, data: { label: 'Character', type: 'debug', config: {} } },
+      // AI Tools
+      { id: 'tool_name', type: 'custom', position: { x: 300, y: 400 }, data: { label: 'Name Gen', type: 'tool-ai-name', config: {} } },
+      { id: 'tool_color', type: 'custom', position: { x: 420, y: 400 }, data: { label: 'Color Pick', type: 'tool-ai-color', config: {} } },
+      { id: 'tool_trait', type: 'custom', position: { x: 540, y: 400 }, data: { label: 'Trait Gen', type: 'tool-ai-trait', config: {} } },
+      { id: 'tool_backstory', type: 'custom', position: { x: 660, y: 400 }, data: { label: 'Backstory', type: 'tool-ai-backstory', config: {} } }
+    ],
+    edges: [
+      { id: 'e1', source: 'trigger_1', target: 'task_1' },
+      { id: 'e2', source: 'task_1', target: 'orchestrator_1' },
+      { id: 'e3', source: 'orchestrator_1', target: 'debug_1' },
+      { id: 'e_name', source: 'tool_name', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_color', source: 'tool_color', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_trait', source: 'tool_trait', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_backstory', source: 'tool_backstory', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' }
+    ]
+  },
 ]

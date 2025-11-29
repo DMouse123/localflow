@@ -24,6 +24,10 @@ import {
   Type,
   Terminal,
   Fingerprint,
+  User,
+  Palette,
+  Sparkles,
+  BookOpen,
   type LucideIcon
 } from 'lucide-react'
 import ModelManager from './ModelManager'
@@ -67,6 +71,11 @@ const nodeCategories = {
       { type: 'tool-json-query', label: 'JSON Query', icon: Braces, color: 'bg-rose-600', description: 'Query JSON with paths' },
       { type: 'tool-shell', label: 'Shell Command', icon: Terminal, color: 'bg-rose-600', description: 'Run safe shell commands' },
       { type: 'tool-generate-id', label: 'Generate ID', icon: Fingerprint, color: 'bg-rose-600', description: 'UUID, random strings' },
+      // AI Personality tools
+      { type: 'tool-ai-name', label: 'AI Name Gen', icon: User, color: 'bg-fuchsia-500', description: 'Generate character names' },
+      { type: 'tool-ai-color', label: 'AI Color Pick', icon: Palette, color: 'bg-fuchsia-500', description: 'Generate color descriptions' },
+      { type: 'tool-ai-trait', label: 'AI Trait Gen', icon: Sparkles, color: 'bg-fuchsia-500', description: 'Generate personality traits' },
+      { type: 'tool-ai-backstory', label: 'AI Backstory', icon: BookOpen, color: 'bg-fuchsia-500', description: 'Generate character backstories' },
     ],
   },
   data: {

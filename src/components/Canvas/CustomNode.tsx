@@ -25,6 +25,10 @@ import {
   Type,
   Terminal,
   Fingerprint,
+  User,
+  Palette,
+  Sparkles,
+  BookOpen,
   type LucideIcon 
 } from 'lucide-react'
 import { useExecutionStore } from '../../stores/executionStore'
@@ -55,6 +59,11 @@ const nodeIcons: Record<string, LucideIcon> = {
   'tool-json-query': Braces,
   'tool-shell': Terminal,
   'tool-generate-id': Fingerprint,
+  // AI Personality tools
+  'tool-ai-name': User,
+  'tool-ai-color': Palette,
+  'tool-ai-trait': Sparkles,
+  'tool-ai-backstory': BookOpen,
   default: Database,
 }
 
@@ -84,6 +93,11 @@ const nodeColors: Record<string, string> = {
   'tool-json-query': 'bg-rose-600',
   'tool-shell': 'bg-rose-600',
   'tool-generate-id': 'bg-rose-600',
+  // AI Personality tools - fuchsia
+  'tool-ai-name': 'bg-fuchsia-500',
+  'tool-ai-color': 'bg-fuchsia-500',
+  'tool-ai-trait': 'bg-fuchsia-500',
+  'tool-ai-backstory': 'bg-fuchsia-500',
   default: 'bg-slate-500',
 }
 

@@ -37,6 +37,7 @@ export interface OrchestratorCallbacks {
   onThought?: (thought: string) => void
   onAction?: (action: string, input: any) => void
   onResult?: (result: any) => void
+  onToolComplete?: (action: string) => void
   onComplete?: (finalResult: string) => void
   onError?: (error: string) => void
   log: (message: string) => void
@@ -44,30 +45,39 @@ export interface OrchestratorCallbacks {
 
 // Build the system prompt for the orchestrator
 function buildSystemPrompt(config: OrchestratorConfig): string {
-  const toolDescriptions = getToolDescriptionsForPrompt()
+  // Build tool descriptions with parameters
+  const toolDescriptions = config.enabledTools.map(toolName => {
+    const tool = getTool(toolName)
+    if (!tool) return `${toolName}: (unknown tool)`
+    
+    const params = Object.entries(tool.inputSchema.properties)
+      .map(([name, prop]: [string, any]) => `${name}: ${prop.description || prop.type}`)
+      .join(', ')
+    
+    return `${toolName}(${params})`
+  }).join('\n')
   
-  return `You are an AI assistant that completes tasks by using tools. You have access to the following tools:
+  return `You are a tool-calling assistant. You CANNOT compute answers yourself. You MUST use tools.
 
+TOOLS:
 ${toolDescriptions}
 
-To use a tool, respond in this EXACT format:
-THOUGHT: [your reasoning about what to do next]
-ACTION: [tool_name]
-INPUT: [JSON parameters for the tool]
+FORMAT - Call a tool:
+ACTION: tool_name
+INPUT: {"param_name": "value"}
 
-When you have completed the task, respond with:
-THOUGHT: [summary of what you did]
-DONE: [your final answer to the user]
+FORMAT - When finished (only after getting RESULT):
+DONE: [answer from the result]
 
-Rules:
-- Always start with THOUGHT to explain your reasoning
-- Only use tools from the list above
-- INPUT must be valid JSON
-- Keep working until the task is complete
-- If you cannot complete the task, explain why in DONE`
+RULES:
+- Use exact parameter names shown above
+- NEVER write DONE until you have a RESULT
+- Output only ACTION/INPUT or DONE`
 }
 
 // Parse LLM response to extract thought, action, input, or done
+// IMPORTANT: Captures the FIRST action/input, not the last
+// If ACTION is present, ignore DONE (model is hallucinating ahead)
 function parseResponse(response: string): {
   thought: string
   action?: string
@@ -79,18 +89,26 @@ function parseResponse(response: string): {
   let action: string | undefined
   let input: any
   let done: string | undefined
+  let foundAction = false  // Flag to only capture FIRST action
 
   for (const line of lines) {
     const trimmed = line.trim()
     
     if (trimmed.startsWith('THOUGHT:')) {
-      thought = trimmed.substring(8).trim()
-    } else if (trimmed.startsWith('ACTION:')) {
+      // Only capture first thought before an action
+      if (!thought) {
+        thought = trimmed.substring(8).trim()
+      }
+    } else if (trimmed.startsWith('ACTION:') && !foundAction) {
+      // Only capture FIRST action
       action = trimmed.substring(7).trim().toLowerCase()
-    } else if (trimmed.startsWith('INPUT:')) {
+      foundAction = true
+    } else if (trimmed.startsWith('INPUT:') && foundAction && !input) {
+      // Only capture input for the FIRST action
       const inputStr = trimmed.substring(6).trim()
-      input = parseJsonFlexible(inputStr, response)
-    } else if (trimmed.startsWith('DONE:')) {
+      input = parseJsonFlexible(inputStr, response, action)
+    } else if (trimmed.startsWith('DONE:') && !foundAction) {
+      // Only capture DONE if there's NO action (model can't hallucinate both)
       done = trimmed.substring(5).trim()
     }
   }
@@ -104,7 +122,7 @@ function parseResponse(response: string): {
 }
 
 // Flexible JSON parser that handles common LLM output quirks
-function parseJsonFlexible(inputStr: string, fullResponse: string): any {
+function parseJsonFlexible(inputStr: string, fullResponse: string, actionName?: string): any {
   // Try standard JSON parse first
   try {
     return JSON.parse(inputStr)
@@ -185,103 +203,122 @@ export async function runOrchestrator(
 
   const systemPrompt = buildSystemPrompt(config)
   
-  // Build conversation for context
-  let conversationHistory = `Task: ${task}\n\n`
-
-  for (let step = 0; step < config.maxSteps; step++) {
-    log(`\n--- Step ${step + 1}/${config.maxSteps} ---`)
-
-    // Call LLM
-    let response: string
-    try {
-      response = await LLMManager.generateSync(conversationHistory, {
-        systemPrompt,
-        maxTokens: 512,
-        temperature: 0.3  // Lower temperature for more consistent tool use
-      })
-    } catch (error) {
-      log(`LLM error: ${error}`)
-      memory.status = 'error'
-      memory.finalResult = `LLM error: ${error}`
-      callbacks.onError?.(`LLM error: ${error}`)
-      return memory
-    }
-
-    log(`LLM response: ${response.substring(0, 200)}...`)
-
-    // Parse the response
-    const parsed = parseResponse(response)
-    
-    const stepRecord: OrchestratorStep = {
-      thought: parsed.thought,
-      timestamp: new Date().toISOString()
-    }
-
-    if (parsed.thought) {
-      log(`THOUGHT: ${parsed.thought}`)
-      callbacks.onThought?.(parsed.thought)
-    }
-
-    // Check if done
-    if (parsed.done) {
-      log(`DONE: ${parsed.done}`)
-      memory.steps.push(stepRecord)
-      memory.status = 'complete'
-      memory.finalResult = parsed.done
-      callbacks.onComplete?.(parsed.done)
-      return memory
-    }
-
-    // Execute action if present
-    if (parsed.action) {
-      stepRecord.action = parsed.action
-      stepRecord.input = parsed.input
-
-      log(`ACTION: ${parsed.action}`)
-      log(`INPUT: ${JSON.stringify(parsed.input)}`)
-      callbacks.onAction?.(parsed.action, parsed.input)
-
-      // Check if tool is enabled
-      if (!config.enabledTools.includes(parsed.action)) {
-        const errorMsg = `Tool "${parsed.action}" is not enabled`
-        log(`ERROR: ${errorMsg}`)
-        stepRecord.result = { error: errorMsg }
-        conversationHistory += `${response}\n\nERROR: ${errorMsg}. Available tools: ${config.enabledTools.join(', ')}\n\n`
-      } else {
-        // Get and execute tool
-        const tool = getTool(parsed.action)
-        if (!tool) {
-          const errorMsg = `Tool "${parsed.action}" not found`
-          log(`ERROR: ${errorMsg}`)
-          stepRecord.result = { error: errorMsg }
-          conversationHistory += `${response}\n\nERROR: ${errorMsg}\n\n`
-        } else {
-          try {
-            const result = await tool.execute(parsed.input || {})
-            stepRecord.result = result
-            log(`RESULT: ${JSON.stringify(result).substring(0, 200)}...`)
-            callbacks.onResult?.(result)
-            conversationHistory += `${response}\n\nRESULT: ${JSON.stringify(result)}\n\n`
-          } catch (error) {
-            const errorMsg = `Tool execution failed: ${error}`
-            log(`ERROR: ${errorMsg}`)
-            stepRecord.result = { error: errorMsg }
-            conversationHistory += `${response}\n\nERROR: ${errorMsg}\n\n`
-          }
-        }
-      }
-    } else {
-      // No action, add thought to history and continue
-      conversationHistory += `${response}\n\nPlease continue with the task. Use a tool or say DONE if finished.\n\n`
-    }
-
-    memory.steps.push(stepRecord)
+  // Create a persistent session for this orchestrator run
+  try {
+    await LLMManager.createOrchestratorSession(systemPrompt)
+  } catch (error) {
+    log(`Failed to create session: ${error}`)
+    memory.status = 'error'
+    memory.finalResult = `Session error: ${error}`
+    return memory
   }
 
-  // Reached max steps
-  log(`Reached max steps (${config.maxSteps})`)
-  memory.status = 'complete'
-  memory.finalResult = `Reached maximum steps. Last progress: ${memory.steps[memory.steps.length - 1]?.thought || 'unknown'}`
+  try {
+    // First prompt is the task
+    let nextPrompt = `Task: ${task}`
+
+    for (let step = 0; step < config.maxSteps; step++) {
+      log(`\n--- Step ${step + 1}/${config.maxSteps} ---`)
+
+      // Call LLM with persistent session
+      let response: string
+      try {
+        response = await LLMManager.orchestratorPrompt(nextPrompt, {
+          maxTokens: 100,
+          temperature: 0.1
+        })
+      } catch (error) {
+        log(`LLM error: ${error}`)
+        memory.status = 'error'
+        memory.finalResult = `LLM error: ${error}`
+        callbacks.onError?.(`LLM error: ${error}`)
+        break
+      }
+
+      log(`LLM response: ${response.substring(0, 200)}...`)
+
+      // Parse the response
+      const parsed = parseResponse(response)
+      
+      const stepRecord: OrchestratorStep = {
+        thought: parsed.thought,
+        timestamp: new Date().toISOString()
+      }
+
+      if (parsed.thought) {
+        log(`THOUGHT: ${parsed.thought}`)
+        callbacks.onThought?.(parsed.thought)
+      }
+
+      // Check if done
+      if (parsed.done) {
+        log(`DONE: ${parsed.done}`)
+        memory.steps.push(stepRecord)
+        memory.status = 'complete'
+        memory.finalResult = parsed.done
+        callbacks.onComplete?.(parsed.done)
+        break
+      }
+
+      // Execute action if present
+      if (parsed.action) {
+        stepRecord.action = parsed.action
+        stepRecord.input = parsed.input
+
+        log(`ACTION: ${parsed.action}`)
+        log(`INPUT: ${JSON.stringify(parsed.input)}`)
+        callbacks.onAction?.(parsed.action, parsed.input)
+
+        // Check if tool is enabled
+        if (!config.enabledTools.includes(parsed.action)) {
+          const errorMsg = `Tool "${parsed.action}" is not enabled`
+          log(`ERROR: ${errorMsg}`)
+          stepRecord.result = { error: errorMsg }
+          nextPrompt = `ERROR: ${errorMsg}. Available tools: ${config.enabledTools.join(', ')}`
+        } else {
+          // Get and execute tool
+          const tool = getTool(parsed.action)
+          if (!tool) {
+            const errorMsg = `Tool "${parsed.action}" not found`
+            log(`ERROR: ${errorMsg}`)
+            stepRecord.result = { error: errorMsg }
+            nextPrompt = `ERROR: ${errorMsg}`
+          } else {
+            try {
+              const result = await tool.execute(parsed.input || {})
+              stepRecord.result = result
+              log(`RESULT: ${JSON.stringify(result).substring(0, 200)}...`)
+              callbacks.onResult?.(result)
+              callbacks.onToolComplete?.(parsed.action)
+              // Next prompt is just the result - session remembers context
+              nextPrompt = `RESULT: ${JSON.stringify(result)}`
+            } catch (error) {
+              const errorMsg = `Tool execution failed: ${error}`
+              log(`ERROR: ${errorMsg}`)
+              stepRecord.result = { error: errorMsg }
+              nextPrompt = `ERROR: ${errorMsg}`
+            }
+          }
+        }
+      } else {
+        // No action parsed - prompt to continue
+        nextPrompt = `Continue. Use a tool or say DONE.`
+      }
+
+      memory.steps.push(stepRecord)
+    }
+
+    // Check if we reached max steps without completing
+    if (memory.status !== 'complete') {
+      log(`Reached max steps (${config.maxSteps})`)
+      memory.status = 'complete'
+      memory.finalResult = `Reached maximum steps. Last progress: ${memory.steps[memory.steps.length - 1]?.thought || 'unknown'}`
+    }
+
+  } finally {
+    // Always clean up the session
+    await LLMManager.disposeOrchestratorSession()
+  }
   
   return memory
 }

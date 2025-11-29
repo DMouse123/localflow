@@ -60,6 +60,8 @@ const aiOrchestratorNode: NodeTypeDefinition = {
 
     // Check for visually connected tools (passed by engine)
     const connectedTools: ToolSchema[] = config._connectedTools || []
+    const toolNodeMap: Record<string, string> = config._toolNodeMap || {}
+    const sendProgress: ((nodeId: string, status: string, data?: any) => void) | undefined = config._sendProgress
     let enabledTools: string[] = []
     
     if (connectedTools.length > 0) {
@@ -100,9 +102,21 @@ const aiOrchestratorNode: NodeTypeDefinition = {
         },
         onAction: (action, input) => {
           context.log(`🔧 ${action}: ${JSON.stringify(input)}`)
+          // Show tool node as running
+          const toolNodeId = toolNodeMap[action]
+          if (toolNodeId && sendProgress) {
+            sendProgress(toolNodeId, 'running')
+          }
         },
         onResult: (result) => {
           context.log(`📋 Result: ${JSON.stringify(result).substring(0, 100)}...`)
+        },
+        onToolComplete: (action) => {
+          // Show tool node as complete
+          const toolNodeId = toolNodeMap[action]
+          if (toolNodeId && sendProgress) {
+            sendProgress(toolNodeId, 'complete')
+          }
         },
         onComplete: (finalResult) => {
           context.log(`✅ Complete: ${finalResult}`)

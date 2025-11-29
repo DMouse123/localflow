@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Play, Square, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, Play, Square, Trash2, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react'
 
 interface LogEntry {
   timestamp: string
@@ -18,6 +18,7 @@ interface OutputPanelProps {
 export default function OutputPanel({ isOpen, onClose, logs, isRunning, onClear }: OutputPanelProps) {
   const logsEndRef = useRef<HTMLDivElement>(null)
   const [isMinimized, setIsMinimized] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
@@ -25,6 +26,13 @@ export default function OutputPanel({ isOpen, onClose, logs, isRunning, onClear 
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [logs, isMinimized])
+
+  const handleCopy = () => {
+    const text = logs.map(l => `${l.timestamp} ${l.message}`).join('\n')
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   if (!isOpen) return null
 
@@ -53,6 +61,13 @@ export default function OutputPanel({ isOpen, onClose, logs, isRunning, onClear 
         </div>
         
         <div className="flex items-center gap-1">
+          <button
+            onClick={handleCopy}
+            className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded"
+            title="Copy logs"
+          >
+            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+          </button>
           <button
             onClick={onClear}
             className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded"
