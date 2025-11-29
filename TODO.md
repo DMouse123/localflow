@@ -40,12 +40,13 @@
 - [x] Chat interface in app (upgraded existing)
 - [x] System prompt with full platform knowledge
 - [x] Can see all nodes, tools, plugins, templates
-- [ ] Can explain the system to users
-- [ ] Can suggest workflow designs from descriptions
+- [x] Can explain the system to users
+- [x] Can suggest workflow designs from descriptions
 - [x] Can build workflows from conversation (command blocks)
 - [x] Can run workflows via commands
-- [ ] Remembers conversation context
-- [ ] Test and refine
+- [x] Remembers conversation context (session memory)
+- [x] Chat API for external access (POST /chat)
+- [ ] Improve command execution reliability (local model inconsistent)
 
 ### MCP Server Integration
 - [ ] Create MCP server (Model Context Protocol)
