@@ -277,6 +277,31 @@ export async function chat(sessionId: string | null, message: string): Promise<{
       }
     }
   }
+  
+  // Also try inline `{...}` with action field (single backticks)
+  const inlineRegex = /`(\{"action":[^`]+\})`/g
+  while ((match = inlineRegex.exec(response)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1])
+      extractCommands(parsed)
+    } catch (e) {
+      // Not valid, ignore
+    }
+  }
+  
+  // Last resort: find any JSON object with "action" field in the text
+  const looseRegex = /\{"action"\s*:\s*"[^"]+"\s*[^}]*\}/g
+  while ((match = looseRegex.exec(response)) !== null) {
+    try {
+      const parsed = JSON.parse(match[0])
+      // Avoid duplicates
+      if (!commands.some(c => JSON.stringify(c) === JSON.stringify(parsed))) {
+        extractCommands(parsed)
+      }
+    } catch (e) {
+      // Not valid, ignore
+    }
+  }
 
   // Add assistant message
   session.messages.push({

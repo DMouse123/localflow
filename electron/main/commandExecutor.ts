@@ -99,11 +99,23 @@ export async function executeCommand(
       
       state.nodes = JSON.parse(JSON.stringify(template.nodes))
       state.edges = JSON.parse(JSON.stringify(template.edges))
-      state.nextNodeId = state.nodes.length + 1
+      
+      // Find the highest node ID number in the template to avoid collisions
+      let maxId = 0
+      for (const node of state.nodes) {
+        const match = node.id.match(/(\d+)/)
+        if (match) {
+          maxId = Math.max(maxId, parseInt(match[1]))
+        }
+      }
+      state.nextNodeId = maxId + 1
+      
+      // Build a summary of loaded nodes
+      const nodeList = state.nodes.map((n: any) => `${n.id}: ${n.data?.type || n.type}`).join(', ')
       
       mainWindow?.webContents.send('workflow:loadTemplate', template)
       
-      return { success: true, result: `Loaded template: ${template.name}` }
+      return { success: true, result: `Loaded template: ${template.name}. Nodes: ${nodeList}` }
     }
     
     case 'run': {
