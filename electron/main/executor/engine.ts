@@ -12,6 +12,7 @@
 import { BrowserWindow } from 'electron'
 import { getNodeType, ExecutionContext, NodeInput, ToolSchema } from './nodeTypes'
 import LLMManager from '../llm/manager'
+import { broadcastToClient } from '../claudeControl'
 
 interface WorkflowNode {
   id: string
@@ -153,10 +154,14 @@ export async function executeWorkflow(
     logs.push(logLine)
     console.log(`[Executor] ${message}`)
     window?.webContents.send('workflow:log', logLine)
+    // Also broadcast to WebSocket client
+    broadcastToClient({ type: 'workflow:log', message: logLine })
   }
 
   const sendProgress = (nodeId: string, status: string, data?: any) => {
     window?.webContents.send('workflow:node-progress', { nodeId, status, data })
+    // Also broadcast to WebSocket client
+    broadcastToClient({ type: 'workflow:progress', nodeId, status, data })
   }
 
   // Create execution context
@@ -269,6 +274,15 @@ export async function executeWorkflow(
       allOutputs[nodeId] = outputs
     })
 
+    // Broadcast final result to WebSocket - find debug node output
+    const debugOutput = Array.from(nodeOutputs.entries())
+      .find(([id, _]) => workflow.nodes.find(n => n.id === id && n.data.type === 'debug'))
+    broadcastToClient({ 
+      type: 'workflow:complete', 
+      success: true, 
+      result: debugOutput ? debugOutput[1] : allOutputs 
+    })
+
     return {
       success: true,
       outputs: allOutputs,
@@ -283,6 +297,7 @@ export async function executeWorkflow(
       success: false,
       error: errorMsg,
     })
+    broadcastToClient({ type: 'workflow:error', error: errorMsg })
 
     return {
       success: false,

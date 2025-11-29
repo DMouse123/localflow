@@ -45,34 +45,42 @@ export interface OrchestratorCallbacks {
 
 // Build the system prompt for the orchestrator
 function buildSystemPrompt(config: OrchestratorConfig): string {
-  // Build tool descriptions with parameters
+  // Build rich tool descriptions from tool registry
   const toolDescriptions = config.enabledTools.map(toolName => {
     const tool = getTool(toolName)
     if (!tool) return `${toolName}: (unknown tool)`
     
     const params = Object.entries(tool.inputSchema.properties)
-      .map(([name, prop]: [string, any]) => `${name}: ${prop.description || prop.type}`)
-      .join(', ')
+      .map(([name, prop]: [string, any]) => `    ${name}: ${prop.description || prop.type}`)
+      .join('\n')
     
-    return `${toolName}(${params})`
-  }).join('\n')
+    return `• ${toolName}: ${tool.description}\n  Parameters:\n${params}`
+  }).join('\n\n')
   
-  return `You are a tool-calling assistant. You CANNOT compute answers yourself. You MUST use tools.
+  return `You are an autonomous AI agent that completes tasks by using tools.
 
-TOOLS:
+AVAILABLE TOOLS:
 ${toolDescriptions}
 
-FORMAT - Call a tool:
-ACTION: tool_name
-INPUT: {"param_name": "value"}
+PROCESS:
+1. Analyze the task and identify what information you need
+2. Look at your available tools and plan which ones to use
+3. Call ONE tool at a time using the format below
+4. Wait for RESULT, then decide next step
+5. When you have all the information needed, say DONE
 
-FORMAT - When finished (only after getting RESULT):
-DONE: [answer from the result]
+FORMAT - To use a tool:
+ACTION: tool_name
+INPUT: {"param": "value"}
+
+FORMAT - When task is complete:
+DONE: [your final answer combining all results]
 
 RULES:
-- Use exact parameter names shown above
-- NEVER write DONE until you have a RESULT
-- Output only ACTION/INPUT or DONE`
+- Call only ONE tool per response
+- Wait for RESULT before calling next tool
+- Use information from previous results in later tool calls
+- Only say DONE when task is fully complete`
 }
 
 // Parse LLM response to extract thought, action, input, or done

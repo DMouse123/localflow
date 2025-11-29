@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Bot, X, Loader2 } from 'lucide-react'
 import { useWorkflowStore } from '../../stores/workflowStore'
+import { WORKFLOW_TEMPLATES } from '../../data/templates'
 
 interface Activity {
   type: string
@@ -125,6 +126,23 @@ export default function ClaudeActivity() {
           case 'workflow:run':
             // Trigger the run button programmatically
             document.querySelector<HTMLButtonElement>('[data-testid="run-button"]')?.click()
+            break
+
+          case 'workflow:loadTemplate':
+            if (payload?.templateId) {
+              const template = WORKFLOW_TEMPLATES.find(t => t.id === payload.templateId)
+              if (template) {
+                useWorkflowStore.getState().setNodes(template.nodes)
+                useWorkflowStore.getState().setEdges(template.edges)
+                result = { success: true, templateName: template.name }
+              } else {
+                result = { error: `Template not found: ${payload.templateId}` }
+              }
+            }
+            break
+
+          case 'workflow:listTemplates':
+            result = { templates: WORKFLOW_TEMPLATES.map(t => ({ id: t.id, name: t.name, icon: t.icon })) }
             break
 
           default:

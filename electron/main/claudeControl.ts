@@ -124,6 +124,13 @@ export function broadcastActivity(type: string, message: string, data?: any) {
   })
 }
 
+// Broadcast to connected WebSocket client
+export function broadcastToClient(data: any) {
+  if (connectedClient && connectedClient.readyState === WebSocket.OPEN) {
+    connectedClient.send(JSON.stringify(data))
+  }
+}
+
 // Check if Claude is connected
 export function isClaudeConnected(): boolean {
   return connectedClient !== null && connectedClient.readyState === WebSocket.OPEN
@@ -140,7 +147,8 @@ export function shutdown() {
 
 export default { 
   initClaudeControl, 
-  broadcastActivity, 
+  broadcastActivity,
+  broadcastToClient,
   isClaudeConnected, 
   shutdown 
 }

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LocalFlow Remote Client</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 { color: #a855f7; margin-bottom: 5px; }
+    .subtitle { color: #888; margin-bottom: 20px; }
+    .status {
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status.disconnected { background: #4a1a1a; }
+    .status.connected { background: #1a4a2a; }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .disconnected .dot { background: #f44; }
+    .connected .dot { background: #4f4; }
+    .section {
+      background: #252540;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .section h2 {
+      margin-top: 0;
+      color: #a855f7;
+      font-size: 1.1em;
+    }
+    select, button, input {
+      padding: 10px 15px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #1a1a2e;
+      color: #eee;
+      font-size: 14px;
+    }
+    select { width: 100%; margin-bottom: 10px; }
+    button {
+      background: #a855f7;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover { background: #9333ea; }
+    button:disabled { background: #555; cursor: not-allowed; }
+    .log {
+      background: #0a0a15;
+      border-radius: 8px;
+      padding: 15px;
+      height: 300px;
+      overflow-y: auto;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .log-entry { margin-bottom: 5px; }
+    .log-entry.info { color: #8888ff; }
+    .log-entry.success { color: #44ff44; }
+    .log-entry.error { color: #ff4444; }
+    .log-entry.result { color: #ffcc00; }
+    .log-entry.node { color: #00ccff; }
+    .result-box {
+      background: #1a3a1a;
+      border: 1px solid #4f4;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+      white-space: pre-wrap;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 13px;
+    }
+    .buttons { display: flex; gap: 10px; }
+  </style>
+</head>
+<body>
+  <h1>⚡ LocalFlow Remote Client</h1>
+  <p class="subtitle">Control LocalFlow from outside the app via WebSocket</p>
+
+  <div id="statusBar" class="status disconnected">
+    <div class="dot"></div>
+    <span id="statusText">Disconnected</span>
+  </div>
+
+  <div class="section">
+    <h2>🔌 Connection</h2>
+    <div class="buttons">
+      <button id="connectBtn" onclick="connect()">Connect to LocalFlow</button>
+      <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🎯 Run Workflow</h2>
+    <select id="workflowSelect">
+      <option value="">-- Select a workflow --</option>
+      <option value="ai-character-builder">🎭 AI Character Builder</option>
+      <option value="rpg-character-sheet">⚔️ RPG Character Sheet</option>
+      <option value="simple-qa">💬 Simple Q&A</option>
+    </select>
+    <div class="buttons">
+      <button id="runBtn" onclick="runWorkflow()" disabled>▶ Run Workflow</button>
+      <button id="clearBtn" onclick="clearLog()">Clear Log</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>📋 Output Log</h2>
+    <div id="log" class="log"></div>
+    <div id="resultBox" class="result-box" style="display:none;"></div>
+  </div>
+
+  <script>
+    let ws = null;
+    let isConnected = false;
+
+    function log(message, type = 'info') {
+      const logEl = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      const time = new Date().toLocaleTimeString();
+      entry.textContent = `[${time}] ${message}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function updateStatus(connected) {
+      isConnected = connected;
+      const bar = document.getElementById('statusBar');
+      const text = document.getElementById('statusText');
+      bar.className = `status ${connected ? 'connected' : 'disconnected'}`;
+      text.textContent = connected ? 'Connected to LocalFlow (ws://localhost:9999)' : 'Disconnected';
+      
+      document.getElementById('connectBtn').disabled = connected;
+      document.getElementById('disconnectBtn').disabled = !connected;
+      document.getElementById('runBtn').disabled = !connected;
+    }
+
+    function connect() {
+      log('Connecting to ws://localhost:9999...');
+      
+      try {
+        ws = new WebSocket('ws://localhost:9999');
+        
+        ws.onopen = () => {
+          log('Connected to LocalFlow!', 'success');
+          updateStatus(true);
+        };
+        
+        ws.onclose = () => {
+          log('Disconnected from LocalFlow', 'error');
+          updateStatus(false);
+        };
+        
+        ws.onerror = (err) => {
+          log('Connection error - is LocalFlow running?', 'error');
+          updateStatus(false);
+        };
+        
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            handleMessage(data);
+          } catch (e) {
+            log(`Raw message: ${event.data}`, 'info');
+          }
+        };
+      } catch (e) {
+        log(`Failed to connect: ${e.message}`, 'error');
+      }
+    }
+
+    function disconnect() {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      updateStatus(false);
+      log('Disconnected');
+    }
+
+    function handleMessage(data) {
+      // Handle different message types from LocalFlow
+      if (data.type === 'workflow:log') {
+        log(data.message, 'node');
+      } else if (data.type === 'workflow:progress') {
+        log(`📍 ${data.nodeLabel || data.nodeId}: ${data.status}`, 'info');
+      } else if (data.type === 'workflow:complete') {
+        log('✅ Workflow completed!', 'success');
+        if (data.result) {
+          showResult(data.result);
+        }
+      } else if (data.type === 'workflow:error') {
+        log(`❌ Error: ${data.error}`, 'error');
+      } else if (data.type === 'node:output') {
+        log(`📤 Output: ${JSON.stringify(data.output).substring(0, 100)}...`, 'result');
+      } else if (data.type === 'debug') {
+        log(`🔍 Debug: ${data.message}`, 'result');
+        showResult(data.message);
+      } else if (data.type === 'pong') {
+        log('Pong received', 'info');
+      } else if (data.type === 'error') {
+        log(`Error: ${data.message}`, 'error');
+      } else {
+        log(`Message: ${JSON.stringify(data)}`, 'info');
+      }
+    }
+
+    function showResult(result) {
+      const box = document.getElementById('resultBox');
+      box.style.display = 'block';
+      box.textContent = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+    }
+
+    function runWorkflow() {
+      const select = document.getElementById('workflowSelect');
+      const templateId = select.value;
+      
+      if (!templateId) {
+        log('Please select a workflow first', 'error');
+        return;
+      }
+      
+      document.getElementById('resultBox').style.display = 'none';
+      log(`🚀 Running workflow: ${templateId}`, 'info');
+      
+      // Send command to load template and run it
+      ws.send(JSON.stringify({
+        type: 'workflow:loadTemplate',
+        templateId: templateId
+      }));
+      
+      // Give it a moment to load, then run
+      setTimeout(() => {
+        ws.send(JSON.stringify({
+          type: 'workflow:run'
+        }));
+      }, 500);
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+      document.getElementById('resultBox').style.display = 'none';
+      log('Log cleared', 'info');
+    }
+
+    // Auto-connect on page load
+    window.onload = () => {
+      log('LocalFlow Remote Client ready');
+      log('Click "Connect" to connect to LocalFlow');
+    };
+  </script>
+</body>
+</html>

@@ -410,7 +410,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     icon: '🎭',
     nodes: [
       { id: 'trigger_1', type: 'custom', position: { x: 50, y: 220 }, data: { label: 'Start', type: 'trigger', config: {} } },
-      { id: 'task_1', type: 'custom', position: { x: 200, y: 220 }, data: { label: 'Task', type: 'text-input', config: { text: 'Create a fantasy character. Use these tools IN ORDER:\n1. ai_name_generator (style: fantasy) - get name\n2. ai_color_picker (context: hair color) - get hair\n3. ai_color_picker (context: eye color) - get eyes\n4. ai_trait_generator (type: positive) - get trait\n5. ai_backstory (name: use the name from step 1) - get backstory\n\nAfter using ALL 5 tools, say DONE with all the results.' } } },
+      { id: 'task_1', type: 'custom', position: { x: 200, y: 220 }, data: { label: 'Task', type: 'text-input', config: { text: 'Create a fantasy character with a name, hair color, eye color, a personality trait, and a short backstory.' } } },
       { id: 'orchestrator_1', type: 'custom', position: { x: 480, y: 220 }, data: { label: 'Character Builder', type: 'ai-orchestrator', config: { maxSteps: 12 } } },
       { id: 'debug_1', type: 'custom', position: { x: 750, y: 220 }, data: { label: 'Character', type: 'debug', config: {} } },
       // AI Tools
@@ -427,6 +427,38 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: 'e_color', source: 'tool_color', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
       { id: 'e_trait', source: 'tool_trait', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
       { id: 'e_backstory', source: 'tool_backstory', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' }
+    ]
+  },
+
+  {
+    id: 'rpg-character-sheet',
+    name: 'RPG Character Sheet Generator',
+    description: 'Full RPG character with stats, inventory ID, timestamp, and creative details',
+    icon: '⚔️',
+    nodes: [
+      { id: 'trigger_1', type: 'custom', position: { x: 50, y: 200 }, data: { label: 'Start', type: 'trigger', config: {} } },
+      { id: 'task_1', type: 'custom', position: { x: 200, y: 200 }, data: { label: 'Task', type: 'text-input', config: { text: 'Create a complete RPG character sheet with: a fantasy name, a unique character ID, hair and eye colors, a personality trait, base stats (roll 3d6 for strength, dexterity, wisdom - calculate each as 3 random numbers 1-6 added together), and a backstory that references their stats.' } } },
+      { id: 'orchestrator_1', type: 'custom', position: { x: 520, y: 200 }, data: { label: 'RPG Generator', type: 'ai-orchestrator', config: { maxSteps: 15 } } },
+      { id: 'debug_1', type: 'custom', position: { x: 820, y: 200 }, data: { label: 'Character Sheet', type: 'debug', config: {} } },
+      // Creative AI tools
+      { id: 'tool_name', type: 'custom', position: { x: 280, y: 380 }, data: { label: 'Name Gen', type: 'tool-ai-name', config: {} } },
+      { id: 'tool_color', type: 'custom', position: { x: 380, y: 380 }, data: { label: 'Color Pick', type: 'tool-ai-color', config: {} } },
+      { id: 'tool_trait', type: 'custom', position: { x: 480, y: 380 }, data: { label: 'Trait Gen', type: 'tool-ai-trait', config: {} } },
+      { id: 'tool_backstory', type: 'custom', position: { x: 580, y: 380 }, data: { label: 'Backstory', type: 'tool-ai-backstory', config: {} } },
+      // Utility tools
+      { id: 'tool_calc', type: 'custom', position: { x: 680, y: 380 }, data: { label: 'Calculator', type: 'tool-calculator', config: {} } },
+      { id: 'tool_genid', type: 'custom', position: { x: 780, y: 380 }, data: { label: 'Generate ID', type: 'tool-generate-id', config: {} } }
+    ],
+    edges: [
+      { id: 'e1', source: 'trigger_1', target: 'task_1' },
+      { id: 'e2', source: 'task_1', target: 'orchestrator_1' },
+      { id: 'e3', source: 'orchestrator_1', target: 'debug_1' },
+      { id: 'e_name', source: 'tool_name', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_color', source: 'tool_color', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_trait', source: 'tool_trait', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_backstory', source: 'tool_backstory', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_calc', source: 'tool_calc', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_genid', source: 'tool_genid', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' }
     ]
   },
 ]
