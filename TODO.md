@@ -59,10 +59,10 @@
 - [ ] UI for workflow management
 
 ### Workflow Composability
-- [ ] Create `tool-workflow` node type
-- [ ] Allow workflows to call other workflows
-- [ ] Pass outputs between workflows
-- [ ] Test nested workflow execution
+- [x] Create workflow execution tools (run_workflow, list_workflows)
+- [x] Allow workflows to call other workflows
+- [x] Pass outputs between workflows
+- [x] Test nested workflow execution
 
 ### UI Improvements
 - [ ] Fix edge animation bug (BUGLIST.md)
