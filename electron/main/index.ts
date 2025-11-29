@@ -7,6 +7,8 @@ import { initClaudeControl, shutdown as shutdownClaudeControl } from './claudeCo
 import { initRestApi, shutdownRestApi } from './restApi'
 import { initToolRegistry } from './executor/tools'
 import { registerOrchestratorNode } from './executor/orchestratorNode'
+import { loadAllPlugins } from './plugins/loader'
+import { registerPluginTools } from './plugins/registry'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -62,6 +64,13 @@ function createWindow() {
 app.whenReady().then(() => {
   ensureDirectories()
   LLMManager.initModelManager()
+  
+  // Load plugins
+  loadAllPlugins().then(plugins => {
+    console.log(`[Main] Loaded ${plugins.length} plugins`)
+    const toolCount = registerPluginTools()
+    console.log(`[Main] Registered ${toolCount} plugin tools`)
+  })
   
   // Initialize tool registry and orchestrator node
   initToolRegistry()

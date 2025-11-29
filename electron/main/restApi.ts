@@ -12,6 +12,7 @@
 import http from 'http'
 import { getTemplate, listTemplates, getTemplateSchema, listTemplatesWithSchema } from './templates'
 import { executeWorkflow } from './executor/engine'
+import { getAllTools } from './executor/tools'
 import { BrowserWindow } from 'electron'
 
 const REST_PORT = 9998
@@ -43,6 +44,46 @@ export function initRestApi(window: BrowserWindow) {
       if (req.method === 'GET' && path === '/health') {
         res.writeHead(200)
         res.end(JSON.stringify({ status: 'ok', service: 'localflow' }))
+        return
+      }
+
+      // GET /tools - list all available tools
+      if (req.method === 'GET' && path === '/tools') {
+        const tools = getAllTools().map(t => ({
+          name: t.name,
+          description: t.description,
+          inputs: t.inputSchema.properties
+        }))
+        res.writeHead(200)
+        res.end(JSON.stringify({ tools }))
+        return
+      }
+
+      // POST /tools/:name - execute a tool directly
+      if (req.method === 'POST' && path.startsWith('/tools/')) {
+        const toolName = path.replace('/tools/', '')
+        const tools = getAllTools()
+        const tool = tools.find(t => t.name === toolName)
+        
+        if (!tool) {
+          res.writeHead(404)
+          res.end(JSON.stringify({ error: `Tool not found: ${toolName}` }))
+          return
+        }
+        
+        let body = ''
+        req.on('data', chunk => body += chunk)
+        req.on('end', async () => {
+          try {
+            const params = JSON.parse(body || '{}')
+            const result = await tool.execute(params)
+            res.writeHead(200)
+            res.end(JSON.stringify({ success: true, result }))
+          } catch (err) {
+            res.writeHead(500)
+            res.end(JSON.stringify({ error: String(err) }))
+          }
+        })
         return
       }
 

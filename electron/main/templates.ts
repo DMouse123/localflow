@@ -86,6 +86,28 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: 'e_calc', source: 'tool_calc', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
       { id: 'e_genid', source: 'tool_genid', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' }
     ]
+  },
+
+  {
+    id: 'plugin-test',
+    name: 'Plugin Test',
+    description: 'Test workflow using plugin tools',
+    icon: '🔌',
+    nodes: [
+      { id: 'trigger_1', type: 'custom', position: { x: 50, y: 200 }, data: { label: 'Start', type: 'trigger', config: {} } },
+      { id: 'task_1', type: 'custom', position: { x: 200, y: 200 }, data: { label: 'Task', type: 'text-input', config: { text: 'Greet the user named "Developer" and then generate a random number between 1 and 10.' } } },
+      { id: 'orchestrator_1', type: 'custom', position: { x: 480, y: 200 }, data: { label: 'Plugin Tester', type: 'ai-orchestrator', config: { maxSteps: 5 } } },
+      { id: 'debug_1', type: 'custom', position: { x: 750, y: 200 }, data: { label: 'Result', type: 'debug', config: {} } },
+      { id: 'tool_greet', type: 'custom', position: { x: 350, y: 350 }, data: { label: 'Greeter', type: 'tool-greet', config: {} } },
+      { id: 'tool_random', type: 'custom', position: { x: 500, y: 350 }, data: { label: 'Random', type: 'tool-random_number', config: {} } }
+    ],
+    edges: [
+      { id: 'e1', source: 'trigger_1', target: 'task_1' },
+      { id: 'e2', source: 'task_1', target: 'orchestrator_1' },
+      { id: 'e3', source: 'orchestrator_1', target: 'debug_1' },
+      { id: 'e_greet', source: 'tool_greet', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' },
+      { id: 'e_random', source: 'tool_random', target: 'orchestrator_1', sourceHandle: 'toolOut', targetHandle: 'tools' }
+    ]
   }
 ]
 
