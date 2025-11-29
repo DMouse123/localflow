@@ -6,35 +6,48 @@ Build, run, and automate AI workflows entirely on your local machine - no cloud 
 
 ![LocalFlow](resources/icon.png)
 
+## What is LocalFlow?
+
+LocalFlow is a local AI agent framework. You design workflows visually, connect tools, and let a local AI decide how to use them to complete tasks. It's like giving an AI a toolbox and watching it figure out what to do.
+
+**Key Concept:** The AI Orchestrator looks at your task, examines available tools, plans a sequence, executes step-by-step, and combines results.
+
 ## Features
 
 ### 🎨 Visual Workflow Builder
 - Drag & drop nodes onto canvas
 - Connect nodes to build data pipelines
 - Real-time execution with progress tracking
+- Pink tool connections, gray data connections
 
-### 🤖 Local AI Integration
-- Runs Llama 3.2, Qwen, SmolLM models locally
-- No API keys or cloud services needed
-- Download models directly in the app
+### 🤖 AI Orchestrator
+- Autonomous tool selection and execution
+- Self-discovers connected tools
+- Plans and executes multi-step tasks
+- Remembers context across steps
 
-### 📦 Node Types
-- **Text Input** - Static text values
-- **AI Chat** - Chat with AI model
-- **AI Transform** - Transform text with instructions
-- **Debug** - Log outputs
+### 🔧 Built-in Tools (11)
+- **AI Tools**: Name generator, color picker, trait generator, backstory
+- **Utility**: Calculator, datetime, generate ID
+- **File**: Read, write, list directory
+- **Advanced**: HTTP request, JSON query, shell command, string ops
 
-### 🚀 One-Click Templates
-- Simple Q&A
-- Text Summarizer
-- Creative Story Writer
-- Translator
-- Code Explainer
+### 🔌 Plugin System
+- Drop a folder in `~/.localflow/plugins/`
+- Define tools in `manifest.json` + JavaScript
+- Auto-discovered on startup
+- Works with AI Orchestrator
 
-### 💬 AI Assistant
-- Built-in help chat
-- Learns you how to build workflows
-- Context-aware suggestions
+### 🌐 APIs
+- **REST API** (port 9998): Discover and run workflows
+- **WebSocket** (port 9999): Real-time streaming
+- Full schema discovery
+- Custom parameters
+
+### 🤖 Local AI
+- Runs Llama, Qwen, SmolLM models locally
+- No API keys or cloud services
+- Download models in-app
 
 ## Quick Start
 
@@ -48,18 +61,80 @@ npm run dev
 
 ## Usage
 
-1. **Load a Model**: Go to Models tab, click download on Llama 3.2 1B, then click to load
-2. **Pick a Template**: Go to Templates tab, click any template to load it
+1. **Load a Model**: Models tab → Download → Load
+2. **Pick a Template**: Templates tab → Click to load
 3. **Run**: Click the green Run button
 4. **Watch**: See output in the bottom panel
 
-## Building Custom Workflows
+## API Access
 
-1. Go to **Nodes** tab
-2. Drag nodes onto the canvas
-3. Connect nodes by dragging from output handle to input handle
-4. Click a node to configure it in the Properties panel
-5. Click **Run** to execute
+```bash
+# Health check
+curl http://localhost:9998/health
+
+# List available workflows
+curl http://localhost:9998/templates
+
+# Run a workflow
+curl -X POST http://localhost:9998/run \
+  -H "Content-Type: application/json" \
+  -d '{"templateId": "ai-character-builder"}'
+
+# Run with custom prompt
+curl -X POST http://localhost:9998/run \
+  -H "Content-Type: application/json" \
+  -d '{"templateId": "ai-character-builder", "params": {"task": "Create a pirate captain"}}'
+```
+
+## Creating Plugins
+
+Create a folder in `~/.localflow/plugins/`:
+
+```
+~/.localflow/plugins/my-plugin/
+├── manifest.json
+└── tools/
+    └── my-tool.js
+```
+
+**manifest.json:**
+```json
+{
+  "id": "my-plugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "tools": [{
+    "id": "my_tool",
+    "name": "My Tool",
+    "description": "Does something cool",
+    "file": "tools/my-tool.js",
+    "inputs": {
+      "text": { "type": "string", "required": true }
+    },
+    "outputs": {
+      "result": { "type": "string" }
+    }
+  }]
+}
+```
+
+**tools/my-tool.js:**
+```javascript
+module.exports = {
+  async execute(input, config, context) {
+    return { success: true, result: `Processed: ${input.text}` };
+  }
+};
+```
+
+Restart LocalFlow and your tool is available!
+
+## Documentation
+
+- [REST API](docs/REST_API.md) - HTTP endpoints
+- [WebSocket API](docs/WEBSOCKET_API.md) - Real-time streaming
+- [Plugin Architecture](PLUGIN_ARCHITECTURE.md) - Creating plugins
+- [Architecture](ARCHITECTURE.md) - System design
 
 ## Tech Stack
 
@@ -73,22 +148,27 @@ npm run dev
 ```
 localflow/
 ├── electron/          # Electron main process
-│   ├── main/          # Main process code
+│   ├── main/
 │   │   ├── llm/       # LLM management
-│   │   └── executor/  # Workflow execution
-│   └── preload/       # Preload scripts
+│   │   ├── executor/  # Workflow execution
+│   │   └── plugins/   # Plugin system
+│   └── preload/
 ├── src/               # React renderer
-│   ├── components/    # UI components
-│   ├── stores/        # Zustand stores
-│   └── data/          # Templates, etc.
-├── scripts/           # CLI tools
-└── shared/            # Shared types
+│   ├── components/
+│   ├── stores/
+│   └── data/
+├── docs/              # API documentation
+├── examples/          # Example clients
+└── scripts/           # CLI tools
 ```
 
-## Development
+## What's Next
 
-See [CLAUDE_CONTROL.md](./CLAUDE_CONTROL.md) for detailed development guide.
-See [DEV_LOG.md](./DEV_LOG.md) for development history and progress.
+See [TODO.md](TODO.md) for the roadmap:
+- Master AI Chat (conversational workflow design)
+- MCP integration (Claude Desktop)
+- Workflow-to-workflow calls
+- Persistence (save/load workflows)
 
 ## License
 
