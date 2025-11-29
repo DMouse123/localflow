@@ -15,6 +15,7 @@ import {
   FileOutput,
   Braces,
   Repeat,
+  Brain,
   type LucideIcon
 } from 'lucide-react'
 import ModelManager from './ModelManager'
@@ -41,6 +42,7 @@ const nodeCategories = {
       { type: 'ai-chat', label: 'AI Chat', icon: MessageSquare, color: 'bg-purple-500', description: 'Chat with AI model' },
       { type: 'ai-transform', label: 'AI Transform', icon: Zap, color: 'bg-blue-500', description: 'Transform text with AI' },
       { type: 'ai-agent', label: 'AI Agent', icon: Bot, color: 'bg-indigo-500', description: 'Agent with tools' },
+      { type: 'ai-orchestrator', label: 'AI Orchestrator', icon: Brain, color: 'bg-pink-500', description: 'Autonomous task completion' },
     ],
   },
   data: {

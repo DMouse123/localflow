@@ -10,6 +10,13 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  Bot,
+  Brain,
+  Globe,
+  FileInput,
+  FileOutput,
+  Braces,
+  Repeat,
   type LucideIcon 
 } from 'lucide-react'
 import { useExecutionStore } from '../../stores/executionStore'
@@ -19,7 +26,14 @@ const nodeIcons: Record<string, LucideIcon> = {
   trigger: Play,
   'ai-chat': MessageSquare,
   'ai-transform': Zap,
+  'ai-agent': Bot,
+  'ai-orchestrator': Brain,
   'text-input': FileText,
+  'http-request': Globe,
+  'file-read': FileInput,
+  'file-write': FileOutput,
+  'json-parse': Braces,
+  'loop': Repeat,
   'debug': Settings,
   default: Database,
 }
@@ -29,7 +43,14 @@ const nodeColors: Record<string, string> = {
   trigger: 'bg-green-500',
   'ai-chat': 'bg-purple-500',
   'ai-transform': 'bg-blue-500',
+  'ai-agent': 'bg-indigo-500',
+  'ai-orchestrator': 'bg-pink-500',
   'text-input': 'bg-gray-500',
+  'http-request': 'bg-cyan-500',
+  'file-read': 'bg-emerald-500',
+  'file-write': 'bg-teal-500',
+  'json-parse': 'bg-amber-500',
+  'loop': 'bg-violet-500',
   'debug': 'bg-orange-500',
   default: 'bg-slate-500',
 }

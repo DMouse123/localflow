@@ -1,8 +1,8 @@
 # LocalFlow Architecture & Design Document
 
-> **Version:** 1.2
+> **Version:** 1.3
 > **Date:** November 29, 2025
-> **Status:** Foundation Complete, Building AI Orchestrator
+> **Status:** Foundation Complete, Redesigning AI Orchestrator Tool Connections
 
 ---
 
@@ -13,15 +13,16 @@
 3. [Current Architecture](#current-architecture)
 4. [Core LLM Queue System](#core-llm-queue-system)
 5. [Nodes vs Tools](#nodes-vs-tools)
-6. [Plugin System Design](#plugin-system-design)
-7. [AI Orchestrator Design](#ai-orchestrator-design)
-8. [Local API Server](#local-api-server)
-9. [AI Flow Designer](#ai-flow-designer)
-10. [MCP Compatibility](#mcp-compatibility)
-11. [Node Specification](#node-specification)
-12. [Data Flow](#data-flow)
-13. [Development Rules](#development-rules)
-14. [Roadmap](#roadmap)
+6. [**Tool Connection Architecture**](#tool-connection-architecture) ← NEW
+7. [Plugin System Design](#plugin-system-design)
+8. [AI Orchestrator Design](#ai-orchestrator-design)
+9. [Local API Server](#local-api-server)
+10. [AI Flow Designer](#ai-flow-designer)
+11. [MCP Compatibility](#mcp-compatibility)
+12. [Node Specification](#node-specification)
+13. [Data Flow](#data-flow)
+14. [Development Rules](#development-rules)
+15. [Roadmap](#roadmap)
 
 ---
 
@@ -297,6 +298,183 @@ Not every node should be a tool. Nodes can opt-in:
   canBeTool: true,
   toolDescription: "Makes HTTP requests to fetch data from URLs or APIs"
 }
+```
+
+---
+
+## Tool Connection Architecture
+
+> **STATUS: CRITICAL REDESIGN NEEDED**
+> 
+> This section documents the required architectural change for how tools connect to the AI Orchestrator.
+> Current implementation is WRONG. This is the fix.
+
+### The Problem (Current Implementation)
+
+Currently, tools are configured as a **text string** in the orchestrator's config:
+
+```
+[Trigger] → [Text Input] → [Orchestrator] → [Debug]
+                               ↑
+                          config.tools = "calculator,datetime,http_get"
+```
+
+**Issues:**
+1. User can't see what tools are available
+2. Tools are invisible - just a text field
+3. No visual indication of orchestrator capabilities
+4. Doesn't match how n8n (and industry standard) does it
+
+### The Solution (n8n Pattern)
+
+Tools should be **visual nodes** that connect to a special "tools" port on the orchestrator:
+
+```
+                    [Calculator] ───┐
+                                    │
+[Trigger] → [Text Input] → [Orchestrator] → [Debug]
+                                    │
+                    [HTTP Request] ─┘
+                    [File Read] ────┘
+```
+
+**How n8n does it:**
+- AI Agent node has a special **"Tools" connector** at the bottom
+- User clicks "+" on the tools connector
+- Selects from available tool nodes (Wikipedia, HTTP, Database, etc.)
+- Tool nodes visually attach to the agent
+- Agent only has access to tools that are **visually wired**
+
+### Key Insight
+
+**Tools don't pass data INTO the orchestrator.**
+**Tools make themselves AVAILABLE to the orchestrator.**
+
+The orchestrator then calls them when IT decides to.
+
+This is fundamentally different from normal data flow edges.
+
+### Required Changes
+
+#### 1. New Connection Type: "tool"
+
+```typescript
+// Current edge types
+type EdgeType = 'default'  // data flows from A to B
+
+// New edge types  
+type EdgeType = 'default' | 'tool'  // tool = capability registration
+```
+
+#### 2. Orchestrator Node: Special "tools" Input Port
+
+```typescript
+{
+  id: 'ai-orchestrator',
+  inputs: [
+    { id: 'task', name: 'Task', type: 'string' },      // Normal data input
+    { id: 'tools', name: 'Tools', type: 'tool[]' }    // Special tool port
+  ],
+  // ...
+}
+```
+
+#### 3. Tool Nodes: Nodes That Can Connect as Tools
+
+```typescript
+{
+  id: 'calculator',
+  name: 'Calculator',
+  canBeTool: true,  // This node can attach to orchestrator's tool port
+  toolSchema: {
+    name: 'calculator',
+    description: 'Performs math calculations',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        expression: { type: 'string', description: 'Math expression' }
+      },
+      required: ['expression']
+    }
+  },
+  execute: async (params) => { /* ... */ }
+}
+```
+
+#### 4. Visual Distinction
+
+Tool connections should look different:
+- Different color (e.g., purple vs blue)
+- Different line style (e.g., dashed)
+- Connect to bottom of orchestrator, not side
+- Tool nodes visually "attach" to orchestrator
+
+#### 5. Executor Logic Change
+
+When orchestrator runs:
+1. Find all edges where `target = orchestrator.id` AND `targetHandle = 'tools'`
+2. For each connected tool node, get its `toolSchema`
+3. Build available tools list from connected nodes
+4. Pass this list to the reasoning loop
+
+```typescript
+// In orchestrator execution
+const toolEdges = workflow.edges.filter(
+  e => e.target === orchestratorNode.id && e.targetHandle === 'tools'
+)
+
+const availableTools = toolEdges.map(edge => {
+  const toolNode = workflow.nodes.find(n => n.id === edge.source)
+  return getNodeType(toolNode.data.type).toolSchema
+})
+
+// Now orchestrator only knows about visually connected tools
+runOrchestrator(task, availableTools)
+```
+
+### Visual Mockup
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         WORKFLOW CANVAS                          │
+│                                                                  │
+│   ┌──────────┐      ┌──────────┐      ┌──────────────┐         │
+│   │ Trigger  │ ───► │  Task    │ ───► │  Orchestrator │ ───►    │
+│   └──────────┘      └──────────┘      │              │          │
+│                                        │   [tools]    │          │
+│                                        └──────┬───────┘          │
+│                                               │                  │
+│                              ┌────────────────┼────────────────┐ │
+│                              │                │                │ │
+│                              ▼                ▼                ▼ │
+│                        ┌──────────┐    ┌──────────┐    ┌──────┐ │
+│                        │Calculator│    │HTTP Get  │    │ File │ │
+│                        └──────────┘    └──────────┘    └──────┘ │
+│                                                                  │
+│   These tool nodes are AVAILABLE to the orchestrator            │
+│   but don't receive data flow - orchestrator calls them         │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Implementation Order
+
+1. **Add tool connection type** to edge system
+2. **Create tool port** on orchestrator node
+3. **Add canBeTool + toolSchema** to applicable nodes
+4. **Update executor** to discover tools from connections
+5. **Update UI** to render tool connections differently
+6. **Remove** the text-based tools config field
+
+### Files to Modify
+
+```
+electron/main/executor/nodeTypes.ts    - Add toolSchema to nodes
+electron/main/executor/engine.ts       - Discover tools from edges
+electron/main/executor/orchestrator.ts - Accept tools as parameter
+src/components/Canvas/WorkflowCanvas.tsx - Handle tool edge type
+src/components/Canvas/CustomNode.tsx   - Render tool port
+src/stores/workflowStore.ts           - Support tool edges
 ```
 
 ---

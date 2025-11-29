@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Bot, X, Loader2 } from 'lucide-react'
 import { useWorkflowStore } from '../../stores/workflowStore'
 
@@ -13,8 +13,6 @@ export default function ClaudeActivity() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [thinking, setThinking] = useState<string | null>(null)
   const [isMinimized, setIsMinimized] = useState(false)
-
-  const { setNodes, setEdges, nodes, edges } = useWorkflowStore()
 
   useEffect(() => {
     if (!window.electron) return
@@ -50,6 +48,7 @@ export default function ClaudeActivity() {
             break
 
           case 'node:add':
+            const currentNodes = useWorkflowStore.getState().nodes
             const newNode = {
               id: `node_${Date.now()}`,
               type: 'custom',
@@ -60,32 +59,35 @@ export default function ClaudeActivity() {
                 config: payload?.config || {}
               }
             }
-            setNodes([...nodes, newNode])
+            useWorkflowStore.getState().setNodes([...currentNodes, newNode])
             result = { nodeId: newNode.id }
             break
 
           case 'node:delete':
             if (payload?.nodeId) {
-              setNodes(nodes.filter(n => n.id !== payload.nodeId))
-              setEdges(edges.filter(e => e.source !== payload.nodeId && e.target !== payload.nodeId))
+              const nodesNow = useWorkflowStore.getState().nodes
+              const edgesNow = useWorkflowStore.getState().edges
+              useWorkflowStore.getState().setNodes(nodesNow.filter(n => n.id !== payload.nodeId))
+              useWorkflowStore.getState().setEdges(edgesNow.filter(e => e.source !== payload.nodeId && e.target !== payload.nodeId))
             }
             break
 
           case 'edge:add':
             if (payload?.source && payload?.target) {
+              const currentEdges = useWorkflowStore.getState().edges
               const newEdge = {
                 id: `edge_${Date.now()}`,
                 source: payload.source,
                 target: payload.target,
               }
-              setEdges([...edges, newEdge])
+              useWorkflowStore.getState().setEdges([...currentEdges, newEdge])
               result = { edgeId: newEdge.id }
             }
             break
 
           case 'workflow:clear':
-            setNodes([])
-            setEdges([])
+            useWorkflowStore.getState().setNodes([])
+            useWorkflowStore.getState().setEdges([])
             break
 
           case 'model:load':
@@ -146,7 +148,7 @@ export default function ClaudeActivity() {
       }])
     })
 
-  }, [nodes, edges, setNodes, setEdges])
+  }, [])
 
   if (!isConnected) return null
 

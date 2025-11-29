@@ -612,10 +612,19 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
   'ai-agent': aiAgent,
 }
 
+// Note: AI Orchestrator is registered separately via registerOrchestratorNode()
+// This is done after the tools system is initialized
+
 export function getNodeType(typeId: string): NodeTypeDefinition | undefined {
   return NODE_TYPES[typeId]
 }
 
 export function getAllNodeTypes(): NodeTypeDefinition[] {
   return Object.values(NODE_TYPES)
+}
+
+// Register a node dynamically (used for orchestrator and plugins)
+export function registerNode(node: NodeTypeDefinition) {
+  NODE_TYPES[node.id] = node
+  console.log(`[Nodes] Registered: ${node.id}`)
 }

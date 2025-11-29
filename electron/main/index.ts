@@ -4,6 +4,8 @@ import fs from 'fs'
 import os from 'os'
 import LLMManager from './llm/manager'
 import { initClaudeControl, shutdown as shutdownClaudeControl } from './claudeControl'
+import { initToolRegistry } from './executor/tools'
+import { registerOrchestratorNode } from './executor/orchestratorNode'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -59,6 +61,11 @@ function createWindow() {
 app.whenReady().then(() => {
   ensureDirectories()
   LLMManager.initModelManager()
+  
+  // Initialize tool registry and orchestrator node
+  initToolRegistry()
+  registerOrchestratorNode()
+  
   createWindow()
   
   // Initialize Claude Remote Control after window is created

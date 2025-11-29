@@ -624,3 +624,111 @@ node scripts/claude-remote.js connect # Stay connected
 ---
 
 ## Project Complete! 🎉
+
+
+---
+
+## Session: 2025-11-29 - AI Orchestrator Architecture
+
+### Session Goals
+1. Research n8n AI agent/orchestrator architecture
+2. Design and build AI Orchestrator for LocalFlow
+3. Test orchestrator capabilities
+
+### Major Progress
+
+#### Architecture Design Complete ✅
+- Researched n8n's trigger systems, AI agent orchestration, custom node development
+- Created comprehensive ARCHITECTURE.md (v1.0 → v1.2 → v1.3)
+- Documented Three Levels of AI vision
+- Designed plugin system with manifest.json
+- Added MCP compatibility strategy
+- Designed Core LLM Queue system
+
+#### Orchestrator Implementation (Partial) ✅
+- Created tools.ts with 6 built-in tools (calculator, datetime, http_get, file_read, file_write, file_list)
+- Created orchestrator.ts with Think → Act → Observe reasoning loop
+- Created orchestratorNode.ts wrapper
+- Registered in sidebar, properties panel, executor
+
+#### Testing Results ⚠️
+
+| Task | Result |
+|------|--------|
+| Calculate 15% of 280 | ✅ PASS - Got 42 |
+| What is 25 * 17 | ✅ PASS - Got 425 |
+| Current date/time | ❌ FAIL - Wrong format |
+| $500 - 30% = ? | ❌ FAIL - Wrong params |
+| List files | ❌ FAIL - Wrong JSON |
+
+**Key Finding:** 1B model struggles with exact JSON formats. Simple math works, complex tasks fail.
+
+#### Critical Architecture Issue Discovered ⚠️
+
+**Current (WRONG):**
+Tools are a text config field: `config.tools = "calculator,datetime"`
+
+**Should Be (n8n pattern):**
+Tools are VISUAL NODES that connect to orchestrator's tool port.
+
+```
+                    [Calculator] ───┐
+                                    │
+[Trigger] → [Task] → [Orchestrator] ← tools port
+                                    │
+                    [HTTP Request] ─┘
+```
+
+**Key Insight:**
+> Tools don't pass data INTO the orchestrator.
+> Tools make themselves AVAILABLE to the orchestrator.
+> The orchestrator calls them when IT decides to.
+
+### Files Created (NOT COMMITTED)
+```
+electron/main/executor/tools.ts           # Tool registry
+electron/main/executor/orchestrator.ts    # Reasoning loop
+electron/main/executor/orchestratorNode.ts # Node wrapper
+scripts/test-orchestrator.js              # Test script
+scripts/test-orchestrator-tasks.js        # Multi-task tests
+```
+
+### Files Modified (NOT COMMITTED)
+```
+ARCHITECTURE.md                           # v1.2 → v1.3
+ORCHESTRATOR_DEV_LOG.md                   # Detailed progress
+electron/main/executor/nodeTypes.ts       # registerNode()
+electron/main/index.ts                    # Tool init
+src/components/Sidebar/Sidebar.tsx        # AI Orchestrator
+src/components/Panel/PropertiesPanel.tsx  # Config fields
+src/components/Canvas/CustomNode.tsx      # Icons
+src/components/ClaudeActivity/ClaudeActivity.tsx # Fixed closure bug
+```
+
+### Next Steps for Next Claude
+
+1. **READ FIRST:** 
+   - `ARCHITECTURE.md` - Section "Tool Connection Architecture"
+   - `ORCHESTRATOR_DEV_LOG.md` - Full development log
+
+2. **Decision:** Commit current state or redesign first?
+
+3. **If Redesigning:**
+   - Add "tool" edge type (different from data flow)
+   - Add tool port to orchestrator node
+   - Convert tools (calculator, etc.) to tool nodes with `canBeTool` + `toolSchema`
+   - Update executor to discover tools from connections
+   - Update UI to render tool connections differently
+
+4. **Also Consider:**
+   - Test with 3B model (already downloaded)
+   - Improve system prompt with JSON examples
+
+### Known Issues
+- "No sequences left" error (LLM context issue, intermittent)
+- Workflow sometimes runs twice
+- 1B model can't follow complex JSON formats
+
+---
+
+*Session ended. Architecture documented. Tool connection redesign needed.*

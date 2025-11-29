@@ -83,6 +83,13 @@ const NODE_CONFIGS: Record<string, { fields: FieldConfig[] }> = {
       { key: 'tools', label: 'Enabled Tools', type: 'text', placeholder: 'calculator,datetime', default: 'calculator,datetime' },
     ],
   },
+  'ai-orchestrator': {
+    fields: [
+      { key: 'systemPrompt', label: 'Additional Context', type: 'textarea', placeholder: 'Optional context to help the AI understand the task better...' },
+      { key: 'maxSteps', label: 'Max Steps', type: 'number', default: 10, min: 1, max: 50 },
+      { key: 'tools', label: 'Enabled Tools', type: 'text', placeholder: 'calculator,datetime,http_get,file_read,file_write,file_list', default: 'calculator,datetime,http_get,file_read,file_write,file_list' },
+    ],
+  },
 }
 
 interface FieldConfig {
