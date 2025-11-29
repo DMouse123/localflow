@@ -17,6 +17,10 @@ import {
   FileOutput,
   Braces,
   Repeat,
+  Calculator,
+  Clock,
+  FolderOpen,
+  Wrench,
   type LucideIcon 
 } from 'lucide-react'
 import { useExecutionStore } from '../../stores/executionStore'
@@ -35,6 +39,13 @@ const nodeIcons: Record<string, LucideIcon> = {
   'json-parse': Braces,
   'loop': Repeat,
   'debug': Settings,
+  // Tool nodes
+  'tool-calculator': Calculator,
+  'tool-datetime': Clock,
+  'tool-http': Globe,
+  'tool-file-read': FileInput,
+  'tool-file-write': FileOutput,
+  'tool-file-list': FolderOpen,
   default: Database,
 }
 
@@ -52,8 +63,21 @@ const nodeColors: Record<string, string> = {
   'json-parse': 'bg-amber-500',
   'loop': 'bg-violet-500',
   'debug': 'bg-orange-500',
+  // Tool nodes - all rose colored
+  'tool-calculator': 'bg-rose-500',
+  'tool-datetime': 'bg-rose-500',
+  'tool-http': 'bg-rose-500',
+  'tool-file-read': 'bg-rose-500',
+  'tool-file-write': 'bg-rose-500',
+  'tool-file-list': 'bg-rose-500',
   default: 'bg-slate-500',
 }
+
+// Check if this is a tool node
+const isToolNode = (type: string) => type.startsWith('tool-')
+
+// Check if this node accepts tool connections
+const acceptsTools = (type: string) => type === 'ai-orchestrator'
 
 interface CustomNodeData {
   label: string
@@ -65,6 +89,8 @@ function CustomNode({ id, data, selected }: NodeProps<CustomNodeData>) {
   const Icon = nodeIcons[data.type] || nodeIcons.default
   const colorClass = nodeColors[data.type] || nodeColors.default
   const nodeState = useExecutionStore(state => state.nodeStates[id] || 'idle')
+  const isTool = isToolNode(data.type)
+  const hasToolPort = acceptsTools(data.type)
 
   // Determine state class
   const stateClass = nodeState === 'running' ? 'node-running' 
@@ -77,25 +103,44 @@ function CustomNode({ id, data, selected }: NodeProps<CustomNodeData>) {
       className={`
         px-4 py-3 shadow-lg rounded-lg border-2 bg-white min-w-[150px]
         ${selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'}
+        ${isTool ? 'border-dashed' : ''}
         ${stateClass}
         transition-all duration-150
       `}
     >
-      {/* Input Handle */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!bg-slate-400 !w-3 !h-3 !border-2 !border-white"
-      />
+      {/* Input Handle - not for tool nodes */}
+      {!isTool && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="!bg-slate-400 !w-3 !h-3 !border-2 !border-white"
+        />
+      )}
+
+      {/* Tool Output Handle - for tool nodes, connects to orchestrator's tool port */}
+      {isTool && (
+        <Handle
+          type="source"
+          position={Position.Top}
+          id="toolOut"
+          className="!bg-rose-500 !w-3 !h-3 !border-2 !border-white"
+          title="Connect to Orchestrator's tool port"
+        />
+      )}
 
       {/* Node Content */}
       <div className="flex items-center gap-2">
         <div className={`p-1.5 rounded ${colorClass}`}>
           <Icon className="w-4 h-4 text-white" />
         </div>
-        <span className="font-medium text-sm text-slate-700">
-          {data.label}
-        </span>
+        <div className="flex flex-col">
+          <span className="font-medium text-sm text-slate-700">
+            {data.label}
+          </span>
+          {isTool && (
+            <span className="text-xs text-rose-500">Tool</span>
+          )}
+        </div>
         
         {/* Status indicator */}
         {nodeState === 'running' && (
@@ -109,12 +154,25 @@ function CustomNode({ id, data, selected }: NodeProps<CustomNodeData>) {
         )}
       </div>
 
-      {/* Output Handle */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!bg-slate-400 !w-3 !h-3 !border-2 !border-white"
-      />
+      {/* Output Handle - not for tool nodes */}
+      {!isTool && (
+        <Handle
+          type="source"
+          position={Position.Right}
+          className="!bg-slate-400 !w-3 !h-3 !border-2 !border-white"
+        />
+      )}
+
+      {/* Tool Input Port - for orchestrator */}
+      {hasToolPort && (
+        <Handle
+          type="target"
+          position={Position.Bottom}
+          id="tools"
+          className="!bg-rose-500 !w-4 !h-4 !border-2 !border-white !rounded-sm"
+          title="Connect tools here"
+        />
+      )}
     </div>
   )
 }

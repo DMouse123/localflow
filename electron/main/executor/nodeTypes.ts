@@ -45,14 +45,27 @@ export interface NodeOutput {
   [portId: string]: any
 }
 
+// MCP-compatible tool schema for nodes that can be used as tools
+export interface ToolSchema {
+  name: string
+  description: string
+  inputSchema: {
+    type: 'object'
+    properties: Record<string, { type: string; description: string }>
+    required: string[]
+  }
+}
+
 export interface NodeTypeDefinition {
   id: string
   name: string
-  category: 'trigger' | 'ai' | 'data' | 'output'
+  category: 'trigger' | 'ai' | 'data' | 'output' | 'tool'
   inputs: NodePort[]
   outputs: NodePort[]
   config: NodeConfig
   execute: (inputs: NodeInput, config: any, context: ExecutionContext) => Promise<NodeOutput>
+  // Optional: Makes this node available as a tool for AI Orchestrator
+  toolSchema?: ToolSchema
 }
 
 // ============ NODE IMPLEMENTATIONS ============
@@ -596,6 +609,137 @@ Always use THOUGHT before ACTION or FINAL.`
   },
 }
 
+// ============ TOOL NODES ============
+// These nodes can be connected to the AI Orchestrator's tool port
+// They have a toolSchema that describes how the AI can use them
+
+const toolCalculator: NodeTypeDefinition = {
+  id: 'tool-calculator',
+  name: 'Calculator',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }), // Tool nodes don't execute in normal flow
+  toolSchema: {
+    name: 'calculator',
+    description: 'Performs mathematical calculations. Use for math like addition, subtraction, multiplication, division.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        expression: { type: 'string', description: 'Math expression like "25 * 17" or "100 / 4 + 10"' }
+      },
+      required: ['expression']
+    }
+  }
+}
+
+const toolDatetime: NodeTypeDefinition = {
+  id: 'tool-datetime',
+  name: 'Date/Time',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'datetime',
+    description: 'Gets current date and time.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        format: { type: 'string', description: 'Format: "full", "date", "time", or "timestamp"' }
+      },
+      required: []
+    }
+  }
+}
+
+const toolHttp: NodeTypeDefinition = {
+  id: 'tool-http',
+  name: 'HTTP Request',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'http_get',
+    description: 'Fetches data from a URL using HTTP GET.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'The URL to fetch' }
+      },
+      required: ['url']
+    }
+  }
+}
+
+const toolFileRead: NodeTypeDefinition = {
+  id: 'tool-file-read',
+  name: 'File Read',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'file_read',
+    description: 'Reads contents of a file.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Absolute path to the file' }
+      },
+      required: ['path']
+    }
+  }
+}
+
+const toolFileWrite: NodeTypeDefinition = {
+  id: 'tool-file-write',
+  name: 'File Write',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'file_write',
+    description: 'Writes content to a file.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Absolute path to the file' },
+        content: { type: 'string', description: 'Content to write' }
+      },
+      required: ['path', 'content']
+    }
+  }
+}
+
+const toolFileList: NodeTypeDefinition = {
+  id: 'tool-file-list',
+  name: 'File List',
+  category: 'tool',
+  inputs: [],
+  outputs: [],
+  config: {},
+  execute: async () => ({ }),
+  toolSchema: {
+    name: 'file_list',
+    description: 'Lists files and directories at a path.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Directory path to list' }
+      },
+      required: ['path']
+    }
+  }
+}
+
 // ============ NODE REGISTRY ============
 
 export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
@@ -610,6 +754,13 @@ export const NODE_TYPES: Record<string, NodeTypeDefinition> = {
   'json-parse': jsonParse,
   'loop': loopNode,
   'ai-agent': aiAgent,
+  // Tool nodes
+  'tool-calculator': toolCalculator,
+  'tool-datetime': toolDatetime,
+  'tool-http': toolHttp,
+  'tool-file-read': toolFileRead,
+  'tool-file-write': toolFileWrite,
+  'tool-file-list': toolFileList,
 }
 
 // Note: AI Orchestrator is registered separately via registerOrchestratorNode()

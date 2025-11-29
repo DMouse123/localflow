@@ -87,9 +87,16 @@ const NODE_CONFIGS: Record<string, { fields: FieldConfig[] }> = {
     fields: [
       { key: 'systemPrompt', label: 'Additional Context', type: 'textarea', placeholder: 'Optional context to help the AI understand the task better...' },
       { key: 'maxSteps', label: 'Max Steps', type: 'number', default: 10, min: 1, max: 50 },
-      { key: 'tools', label: 'Enabled Tools', type: 'text', placeholder: 'calculator,datetime,http_get,file_read,file_write,file_list', default: 'calculator,datetime,http_get,file_read,file_write,file_list' },
     ],
+    hint: '💡 Connect tool nodes (Calculator, HTTP, etc.) to the bottom port to give the orchestrator capabilities.',
   },
+  // Tool nodes don't need configuration - they're just connected to orchestrator
+  'tool-calculator': { fields: [], hint: '🔧 Connect to an AI Orchestrator\'s tool port (bottom)' },
+  'tool-datetime': { fields: [], hint: '🔧 Connect to an AI Orchestrator\'s tool port (bottom)' },
+  'tool-http': { fields: [], hint: '🔧 Connect to an AI Orchestrator\'s tool port (bottom)' },
+  'tool-file-read': { fields: [], hint: '🔧 Connect to an AI Orchestrator\'s tool port (bottom)' },
+  'tool-file-write': { fields: [], hint: '🔧 Connect to an AI Orchestrator\'s tool port (bottom)' },
+  'tool-file-list': { fields: [], hint: '🔧 Connect to an AI Orchestrator\'s tool port (bottom)' },
 }
 
 interface FieldConfig {
@@ -269,6 +276,13 @@ export default function PropertiesPanel() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Hint for special nodes */}
+        {nodeConfig.hint && (
+          <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+            {nodeConfig.hint}
           </div>
         )}
 

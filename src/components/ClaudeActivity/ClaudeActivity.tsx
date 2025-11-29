@@ -79,6 +79,8 @@ export default function ClaudeActivity() {
                 id: `edge_${Date.now()}`,
                 source: payload.source,
                 target: payload.target,
+                sourceHandle: payload.sourceHandle || undefined,
+                targetHandle: payload.targetHandle || undefined,
               }
               useWorkflowStore.getState().setEdges([...currentEdges, newEdge])
               result = { edgeId: newEdge.id }

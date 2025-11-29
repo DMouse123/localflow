@@ -3,11 +3,15 @@
  * 
  * This file registers the AI Orchestrator as a node type.
  * It's separate from nodeTypes.ts because it depends on the tools system.
+ * 
+ * Tools can be:
+ * 1. Connected visually (tool nodes wired to orchestrator's tool port)
+ * 2. Configured via text field (fallback)
  */
 
-import { NodeTypeDefinition, registerNode, ExecutionContext } from './nodeTypes'
+import { NodeTypeDefinition, registerNode, ExecutionContext, ToolSchema } from './nodeTypes'
 import { runOrchestrator } from './orchestrator'
-import { getToolNames } from './tools'
+import { getToolNames, getTool } from './tools'
 
 const aiOrchestratorNode: NodeTypeDefinition = {
   id: 'ai-orchestrator',
@@ -15,6 +19,7 @@ const aiOrchestratorNode: NodeTypeDefinition = {
   category: 'ai',
   inputs: [
     { id: 'task', name: 'Task', type: 'string' },
+    // Note: 'tools' is a special port handled by the UI, not a regular input
   ],
   outputs: [
     { id: 'result', name: 'Result', type: 'string' },
@@ -32,10 +37,11 @@ const aiOrchestratorNode: NodeTypeDefinition = {
       label: 'Max Steps', 
       default: 10 
     },
+    // Fallback: only used if no tools are visually connected
     tools: { 
       type: 'text', 
-      label: 'Enabled Tools', 
-      default: 'calculator,datetime,http_get,file_read,file_write,file_list' 
+      label: 'Fallback Tools (if none connected)', 
+      default: '' 
     },
   },
   execute: async (inputs, config, context: ExecutionContext) => {
@@ -52,32 +58,39 @@ const aiOrchestratorNode: NodeTypeDefinition = {
       }
     }
 
-    // Parse enabled tools
-    const enabledToolsInput = config.tools || 'calculator,datetime'
-    const enabledTools = enabledToolsInput.split(',').map((t: string) => t.trim())
+    // Check for visually connected tools (passed by engine)
+    const connectedTools: ToolSchema[] = config._connectedTools || []
+    let enabledTools: string[] = []
     
-    // Validate tools exist
-    const availableTools = getToolNames()
-    const validTools = enabledTools.filter((t: string) => availableTools.includes(t))
+    if (connectedTools.length > 0) {
+      // Use connected tools
+      enabledTools = connectedTools.map(t => t.name)
+      context.log(`Using ${connectedTools.length} connected tools: ${enabledTools.join(', ')}`)
+    } else if (config.tools) {
+      // Fallback to config text field
+      const configTools = config.tools.split(',').map((t: string) => t.trim()).filter(Boolean)
+      const availableTools = getToolNames()
+      enabledTools = configTools.filter((t: string) => availableTools.includes(t))
+      context.log(`Using fallback config tools: ${enabledTools.join(', ')}`)
+    }
     
-    if (validTools.length === 0) {
-      context.log(`No valid tools enabled. Available: ${availableTools.join(', ')}`)
+    if (enabledTools.length === 0) {
+      context.log(`No tools available. Connect tool nodes to the orchestrator's tool port.`)
       return {
-        result: 'Error: No valid tools enabled',
+        result: 'Error: No tools connected. Drag tool nodes and connect them to the orchestrator.',
         steps: [],
         memory: { task, steps: [], status: 'error' }
       }
     }
 
     context.log(`Orchestrator starting task: "${task.substring(0, 100)}..."`)
-    context.log(`Enabled tools: ${validTools.join(', ')}`)
 
     // Run the orchestrator
     const memory = await runOrchestrator(
       task,
       {
         maxSteps: config.maxSteps || 10,
-        enabledTools: validTools,
+        enabledTools,
         systemPrompt: config.systemPrompt || undefined
       },
       {

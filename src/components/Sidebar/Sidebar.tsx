@@ -16,6 +16,10 @@ import {
   Braces,
   Repeat,
   Brain,
+  Calculator,
+  Clock,
+  FolderOpen,
+  Wrench,
   type LucideIcon
 } from 'lucide-react'
 import ModelManager from './ModelManager'
@@ -43,6 +47,17 @@ const nodeCategories = {
       { type: 'ai-transform', label: 'AI Transform', icon: Zap, color: 'bg-blue-500', description: 'Transform text with AI' },
       { type: 'ai-agent', label: 'AI Agent', icon: Bot, color: 'bg-indigo-500', description: 'Agent with tools' },
       { type: 'ai-orchestrator', label: 'AI Orchestrator', icon: Brain, color: 'bg-pink-500', description: 'Autonomous task completion' },
+    ],
+  },
+  tools: {
+    label: 'Tools (Connect to Orchestrator)',
+    nodes: [
+      { type: 'tool-calculator', label: 'Calculator', icon: Calculator, color: 'bg-rose-500', description: 'Math calculations' },
+      { type: 'tool-datetime', label: 'Date/Time', icon: Clock, color: 'bg-rose-500', description: 'Current date and time' },
+      { type: 'tool-http', label: 'HTTP Request', icon: Globe, color: 'bg-rose-500', description: 'Fetch data from URLs' },
+      { type: 'tool-file-read', label: 'File Read', icon: FileInput, color: 'bg-rose-500', description: 'Read local files' },
+      { type: 'tool-file-write', label: 'File Write', icon: FileOutput, color: 'bg-rose-500', description: 'Write local files' },
+      { type: 'tool-file-list', label: 'File List', icon: FolderOpen, color: 'bg-rose-500', description: 'List directory contents' },
     ],
   },
   data: {

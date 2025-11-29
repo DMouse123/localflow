@@ -6,10 +6,11 @@
  * 2. Executing each node in order
  * 3. Passing outputs to connected input nodes
  * 4. Reporting progress back to the renderer
+ * 5. Discovering tools connected to orchestrator nodes
  */
 
 import { BrowserWindow } from 'electron'
-import { getNodeType, ExecutionContext, NodeInput } from './nodeTypes'
+import { getNodeType, ExecutionContext, NodeInput, ToolSchema } from './nodeTypes'
 import LLMManager from '../llm/manager'
 
 interface WorkflowNode {
@@ -47,22 +48,31 @@ interface ExecutionResult {
 /**
  * Topologically sort nodes based on edges
  * Returns nodes in execution order (sources before targets)
+ * Excludes tool nodes (they don't execute in normal flow)
  */
 function topologicalSort(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
-  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  // Filter out tool nodes - they don't execute in the data flow
+  const executableNodes = nodes.filter(n => !n.data.type.startsWith('tool-'))
+  
+  // Filter out tool edges (connections to 'tools' handle)
+  const dataEdges = edges.filter(e => e.targetHandle !== 'tools')
+  
+  const nodeMap = new Map(executableNodes.map(n => [n.id, n]))
   const inDegree = new Map<string, number>()
   const adjacency = new Map<string, string[]>()
 
   // Initialize
-  nodes.forEach(n => {
+  executableNodes.forEach(n => {
     inDegree.set(n.id, 0)
     adjacency.set(n.id, [])
   })
 
-  // Build graph
-  edges.forEach(e => {
-    adjacency.get(e.source)?.push(e.target)
-    inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1)
+  // Build graph (only using data edges)
+  dataEdges.forEach(e => {
+    if (adjacency.has(e.source) && inDegree.has(e.target)) {
+      adjacency.get(e.source)?.push(e.target)
+      inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1)
+    }
   })
 
   // Kahn's algorithm
@@ -85,6 +95,36 @@ function topologicalSort(nodes: WorkflowNode[], edges: WorkflowEdge[]): Workflow
   }
 
   return sorted
+}
+
+/**
+ * Find tools connected to a node's "tools" handle
+ * Returns array of tool schemas from connected tool nodes
+ */
+function getConnectedTools(
+  nodeId: string, 
+  workflow: Workflow
+): ToolSchema[] {
+  const connectedTools: ToolSchema[] = []
+  
+  // Find edges targeting this node's "tools" handle
+  const toolEdges = workflow.edges.filter(
+    e => e.target === nodeId && e.targetHandle === 'tools'
+  )
+  
+  for (const edge of toolEdges) {
+    // Find the source node
+    const sourceNode = workflow.nodes.find(n => n.id === edge.source)
+    if (!sourceNode) continue
+    
+    // Get the node type definition
+    const nodeType = getNodeType(sourceNode.data.type)
+    if (!nodeType?.toolSchema) continue
+    
+    connectedTools.push(nodeType.toolSchema)
+  }
+  
+  return connectedTools
 }
 
 /**
@@ -179,6 +219,19 @@ export async function executeWorkflow(
       // Execute the node
       try {
         const config = node.data.config || {}
+        
+        // For orchestrator nodes, discover connected tools
+        if (node.data.type === 'ai-orchestrator') {
+          const connectedTools = getConnectedTools(node.id, workflow)
+          if (connectedTools.length > 0) {
+            // Pass connected tools as a special config property
+            config._connectedTools = connectedTools
+            log(`Orchestrator has ${connectedTools.length} connected tools: ${connectedTools.map(t => t.name).join(', ')}`)
+          } else {
+            log(`Orchestrator has no connected tools - using config.tools fallback`)
+          }
+        }
+        
         const outputs = await nodeType.execute(inputs, config, context)
         nodeOutputs.set(node.id, outputs)
         sendProgress(node.id, 'complete', outputs)
