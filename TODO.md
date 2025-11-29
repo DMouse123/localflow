@@ -42,6 +42,7 @@
 - [x] docs/REST_API.md
 - [x] docs/WEBSOCKET_API.md
 - [x] docs/CHAT_API.md
+- [x] docs/DEVELOPER_GUIDE.md (plugin & tool creation guide)
 - [x] PLUGIN_ARCHITECTURE.md
 - [x] mcp-server/README.md
 

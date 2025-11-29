@@ -146,12 +146,21 @@ localflow/
 - ✅ WebSocket real-time streaming
 - ✅ Master AI Chat (builds workflows from conversation)
 - ✅ MCP Server (Claude Desktop integration)
+- ✅ Workflow persistence (save/load/rename/delete)
+- ✅ Workflow-to-workflow (composable agents)
+
+## Documentation
+
+- [REST API](docs/REST_API.md) - HTTP endpoints
+- [WebSocket API](docs/WEBSOCKET_API.md) - Real-time streaming
+- [Chat API](docs/CHAT_API.md) - Master AI conversation
+- [Developer Guide](docs/DEVELOPER_GUIDE.md) - Create plugins and custom tools
+- [Plugin Architecture](PLUGIN_ARCHITECTURE.md) - How plugins work
 
 ## What's Next
 
-- 🔲 Persistence (save/load/rename/delete workflows)
-- 🔲 Workflow-to-workflow (composable agents)
-- 🔲 UI polish
+- 🔲 UI polish (edge animations, plugin sidebar)
+- 🔲 More built-in integrations
 
 ---
 
