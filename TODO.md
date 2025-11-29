@@ -43,6 +43,9 @@
 - [x] docs/WEBSOCKET_API.md
 - [x] docs/CHAT_API.md
 - [x] docs/DEVELOPER_GUIDE.md (plugin & tool creation guide)
+- [x] docs/ARCHITECTURE.md (system design overview)
+- [x] docs/NODE_REFERENCE.md (all built-in nodes)
+- [x] docs/CONTRIBUTING.md (how to contribute)
 - [x] PLUGIN_ARCHITECTURE.md
 - [x] mcp-server/README.md
 

@@ -155,6 +155,9 @@ localflow/
 - [WebSocket API](docs/WEBSOCKET_API.md) - Real-time streaming
 - [Chat API](docs/CHAT_API.md) - Master AI conversation
 - [Developer Guide](docs/DEVELOPER_GUIDE.md) - Create plugins and custom tools
+- [Architecture](docs/ARCHITECTURE.md) - System design overview
+- [Node Reference](docs/NODE_REFERENCE.md) - All built-in nodes
+- [Contributing](docs/CONTRIBUTING.md) - How to contribute
 - [Plugin Architecture](PLUGIN_ARCHITECTURE.md) - How plugins work
 
 ## What's Next
