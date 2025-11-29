@@ -142,11 +142,37 @@ export async function executeWorkflow(
       
       for (const edge of incomingEdges) {
         const sourceOutputs = nodeOutputs.get(edge.source) || {}
-        const sourceHandle = edge.sourceHandle || Object.keys(sourceOutputs)[0]
-        const targetHandle = edge.targetHandle || nodeType.inputs[0]?.id || 'input'
         
-        if (sourceOutputs[sourceHandle] !== undefined) {
-          inputs[targetHandle] = sourceOutputs[sourceHandle]
+        // Determine source handle - use specified or first available
+        const sourceHandle = edge.sourceHandle || Object.keys(sourceOutputs)[0]
+        const sourceValue = sourceOutputs[sourceHandle]
+        
+        if (sourceValue !== undefined) {
+          // Determine target handle
+          let targetHandle = edge.targetHandle
+          
+          if (!targetHandle) {
+            // Smart mapping: try to find the best input match
+            const inputIds = nodeType.inputs.map(i => i.id)
+            
+            // Common mappings
+            if (inputIds.includes('content') && (sourceHandle === 'response' || sourceHandle === 'output' || sourceHandle === 'text')) {
+              targetHandle = 'content'
+            } else if (inputIds.includes('input')) {
+              targetHandle = 'input'
+            } else if (inputIds.includes('prompt') && (sourceHandle === 'text' || sourceHandle === 'output')) {
+              targetHandle = 'prompt'
+            } else {
+              targetHandle = nodeType.inputs[0]?.id || 'input'
+            }
+          }
+          
+          inputs[targetHandle] = sourceValue
+          
+          // Also populate common aliases for backwards compatibility
+          if (!inputs.input) inputs.input = sourceValue
+          if (!inputs.prompt && typeof sourceValue === 'string') inputs.prompt = sourceValue
+          if (!inputs.text && typeof sourceValue === 'string') inputs.text = sourceValue
         }
       }
 

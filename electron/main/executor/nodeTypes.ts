@@ -298,7 +298,8 @@ const fileRead: NodeTypeDefinition = {
     ]},
   },
   execute: async (inputs, config, context) => {
-    const filePath = inputs.path || config.path
+    // Use config.path as primary, inputs.path only if it's a valid string path
+    const filePath = config.path || (typeof inputs.path === 'string' && inputs.path.startsWith('/') ? inputs.path : '')
     if (!filePath) {
       context.log('File Read: No path provided')
       return { content: '', exists: false }
@@ -343,8 +344,9 @@ const fileWrite: NodeTypeDefinition = {
     ]},
   },
   execute: async (inputs, config, context) => {
-    const filePath = inputs.path || config.path
-    const content = inputs.content || ''
+    // Use config.path as primary for the file path
+    const filePath = config.path || (typeof inputs.path === 'string' && inputs.path.startsWith('/') ? inputs.path : '')
+    const content = inputs.content || inputs.input || inputs.text || inputs.response || ''
     
     if (!filePath) {
       context.log('File Write: No path provided')
