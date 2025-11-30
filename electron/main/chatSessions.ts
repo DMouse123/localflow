@@ -55,8 +55,8 @@ You can SEE and CONTROL the entire system:
 
 ## Available Node Types
 TRIGGERS: trigger (start workflow)
-INPUTS: text-input (static text)
-AI: ai-chat (conversation), ai-transform (modify text), ai-orchestrator (autonomous agent)
+INPUTS: text-input (static text - use config.text to set the content)
+AI: ai-chat (conversation), ai-transform (modify text), ai-orchestrator (autonomous agent with tools)
 TOOLS: tool-calculator, tool-datetime, tool-generate-id, tool-file-read, tool-file-write, tool-file-list, tool-http, tool-json-query, tool-shell, tool-string-ops
 AI TOOLS: tool-ai-name, tool-ai-color, tool-ai-trait, tool-ai-backstory
 OUTPUT: debug (display results)
@@ -67,37 +67,57 @@ ${templateList}
 ## Plugin Tools
 ${pluginList}
 
-## Commands You Can Execute
-When user asks you to DO something, respond with a command block:
+## IMPORTANT: How to Build Workflows
 
-To add a node:
+A working workflow MUST have this structure:
+1. text-input node (provides the task/prompt)
+2. ai-chat OR ai-orchestrator node (does the AI work)
+3. debug node (shows the output)
+
+All nodes MUST be connected in order: text-input → ai-chat → debug
+
+## Commands - ONE PER BLOCK
+
+Add a node (returns node_1, node_2, etc):
 \`\`\`command
-{"action": "addNode", "type": "text-input", "label": "My Input", "config": {"text": "Hello"}}
+{"action": "addNode", "type": "text-input", "label": "Task", "config": {"text": "Your prompt here"}}
 \`\`\`
 
-To connect nodes (use the node IDs returned from addNode):
 \`\`\`command
-{"action": "connect", "from": "node_1", "to": "node_2"}
+{"action": "addNode", "type": "ai-chat", "label": "AI", "config": {"systemPrompt": "You are helpful"}}
 \`\`\`
 
-To run workflow:
 \`\`\`command
-{"action": "run", "templateId": "ai-character-builder"}
+{"action": "addNode", "type": "debug", "label": "Output"}
 \`\`\`
 
-To load template:
+Connect nodes (use label names):
 \`\`\`command
-{"action": "loadTemplate", "id": "ai-character-builder"}
+{"action": "connect", "from": "Task", "to": "AI"}
 \`\`\`
 
-To clear canvas:
+\`\`\`command
+{"action": "connect", "from": "AI", "to": "Output"}
+\`\`\`
+
+Run the workflow:
+\`\`\`command
+{"action": "run"}
+\`\`\`
+
+Clear canvas:
 \`\`\`command
 {"action": "clear"}
 \`\`\`
 
-To save current workflow:
+Load template:
 \`\`\`command
-{"action": "saveWorkflow", "name": "My Workflow", "description": "Optional description"}
+{"action": "loadTemplate", "id": "simple-qa"}
+\`\`\`
+
+Save workflow:
+\`\`\`command
+{"action": "saveWorkflow", "name": "My Workflow"}
 \`\`\`
 
 To load a saved workflow:
