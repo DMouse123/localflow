@@ -669,6 +669,17 @@ export function registerWorkflowExecutionTool() {
   console.log('[Tools] Registered workflow tools: run_workflow, list_workflows')
 }
 
+// Register the workflow builder tools
+export function registerWorkflowBuilderTools() {
+  const { getWorkflowBuilderTools } = require('./workflowBuilderTools')
+  const builderTools = getWorkflowBuilderTools()
+  
+  for (const tool of builderTools) {
+    toolRegistry.set(tool.name, tool)
+  }
+  console.log('[Tools] Registered workflow builder tools:', builderTools.map((t: Tool) => t.name).join(', '))
+}
+
 // Get a tool by name
 export function getTool(name: string): Tool | undefined {
   return toolRegistry.get(name)
