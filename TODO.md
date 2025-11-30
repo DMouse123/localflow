@@ -74,8 +74,8 @@
 - [ ] Better debug node output display
 
 ### Master AI Improvements
-- [ ] Make Master AI use Workflow Builder instead of direct JSON output
-- [ ] Dispatcher pattern: Master AI interprets, Builder builds
+- [x] Make Master AI use Workflow Builder instead of direct JSON output
+- [x] Dispatcher pattern: Master AI interprets, Builder builds
 
 ### Testing
 - [ ] Test MCP server with Claude Desktop
