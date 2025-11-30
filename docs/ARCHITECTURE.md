@@ -272,3 +272,48 @@ HTTP Request → restApi.ts
 3. **Add Plugin** → `~/.localflow/plugins/`
 4. **Add Template** → `templates.ts`
 5. **Add API Endpoint** → `restApi.ts`
+
+
+---
+
+## Workflow Builder System
+
+LocalFlow includes a meta-workflow that builds other workflows programmatically.
+
+### How It Works
+
+```
+User Request → Master AI → Workflow Builder → Built Workflow
+                  ↓              ↓
+            "Build a         Uses tools:
+             pasta maker"    - clear_canvas
+                             - add_node
+                             - connect_nodes
+                             - run_built_workflow
+                             - save_built_workflow
+```
+
+### Workflow Builder Tools
+
+| Tool | Purpose |
+|------|---------|
+| `clear_canvas` | Reset builder state |
+| `add_node` | Add node, returns node_id |
+| `connect_nodes` | Connect two nodes (by ID or label) |
+| `run_built_workflow` | Test the built workflow |
+| `save_built_workflow` | Save to disk |
+
+### Why This Pattern
+
+Small models (3B) struggle to output perfect JSON in one shot. The Workflow Builder:
+
+1. Breaks complex tasks into simple tool calls
+2. Each tool call is atomic and recoverable
+3. Orchestrator handles step-by-step execution
+4. Master AI just dispatches, Builder does the work
+
+### Key Files
+
+- `workflowBuilderTools.ts` - Tool implementations
+- `tools.ts` - Tool registration
+- Saved workflow: "Workflow Builder v3" or similar
