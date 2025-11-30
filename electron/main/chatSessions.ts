@@ -252,37 +252,59 @@ export async function chat(sessionId: string | null, message: string): Promise<{
   const commandRegex = /```command\n([\s\S]*?)\n```/g
   let match
   while ((match = commandRegex.exec(response)) !== null) {
+    const content = match[1].trim()
+    
+    // Try parsing as single JSON object
     try {
-      // Try parsing as JSON
-      const parsed = JSON.parse(match[1])
+      const parsed = JSON.parse(content)
+      extractCommands(parsed)
+      continue
+    } catch (e) {}
+    
+    // Try parsing as JSON array
+    try {
+      const parsed = JSON.parse('[' + content + ']')
+      extractCommands(parsed)
+      continue
+    } catch (e) {}
+    
+    // Try parsing multiple JSON objects separated by newlines
+    const lines = content.split('\n').filter(line => line.trim().startsWith('{'))
+    for (const line of lines) {
+      try {
+        const parsed = JSON.parse(line.trim())
+        extractCommands(parsed)
+      } catch (e) {}
+    }
+    
+    // Try wrapping with commas
+    try {
+      const wrapped = '[' + content.replace(/}\s*\n\s*{/g, '},{').replace(/}\s*,?\s*{/g, '},{') + ']'
+      const parsed = JSON.parse(wrapped)
       extractCommands(parsed)
     } catch (e) {
-      // Try parsing multiple JSON objects separated by commas or newlines
-      try {
-        const wrapped = '[' + match[1].replace(/}\s*,?\s*{/g, '},{') + ']'
-        const parsed = JSON.parse(wrapped)
-        extractCommands(parsed)
-      } catch (e2) {
-        console.error('[Chat] Failed to parse command block:', match[1])
-      }
+      console.error('[Chat] Failed to parse command block:', content.substring(0, 100))
     }
   }
   
   // Also try ```json blocks that contain action field
   const jsonRegex = /```json\n([\s\S]*?)\n```/g
   while ((match = jsonRegex.exec(response)) !== null) {
+    const content = match[1].trim()
+    
     try {
-      const parsed = JSON.parse(match[1])
+      const parsed = JSON.parse(content)
       extractCommands(parsed)
-    } catch (e) {
-      // Try wrapping multiple objects
+      continue
+    } catch (e) {}
+    
+    // Try parsing multiple JSON objects separated by newlines
+    const lines = content.split('\n').filter(line => line.trim().startsWith('{'))
+    for (const line of lines) {
       try {
-        const wrapped = '[' + match[1].replace(/}\s*,?\s*{/g, '},{') + ']'
-        const parsed = JSON.parse(wrapped)
+        const parsed = JSON.parse(line.trim())
         extractCommands(parsed)
-      } catch (e2) {
-        // Not valid, ignore
-      }
+      } catch (e) {}
     }
   }
   
