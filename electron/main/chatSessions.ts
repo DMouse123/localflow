@@ -10,6 +10,7 @@ import { listTemplates } from './templates'
 import { getAllPluginTools } from './plugins/loader'
 import { listWorkflows, getWorkflow } from './workflowStorage'
 import { executeWorkflow } from './executor/engine'
+import { getBuilderState } from './executor/workflowBuilderTools'
 
 // Simple ID generator
 function generateId(): string {
@@ -154,6 +155,7 @@ async function buildWorkflowViaBuilder(request: string): Promise<{
   success: boolean
   result?: string
   error?: string
+  builtWorkflow?: { nodes: any[], edges: any[] }
 }> {
   const builderId = await getWorkflowBuilderId()
   
@@ -192,6 +194,14 @@ async function buildWorkflowViaBuilder(request: string): Promise<{
       nodes: modifiedNodes
     }, null)
     
+    // Get the built workflow from builder state
+    const builtState = getBuilderState()
+    const builtWorkflow = builtState.nodes.length > 0 
+      ? { nodes: [...builtState.nodes], edges: [...builtState.edges] }
+      : undefined
+    
+    console.log(`[Chat] Builder created ${builtState.nodes.length} nodes, ${builtState.edges.length} edges`)
+    
     // Extract result from orchestrator output
     const outputs = result.outputs || {}
     let builderResult = 'Workflow built'
@@ -202,7 +212,7 @@ async function buildWorkflowViaBuilder(request: string): Promise<{
       if (o?.memory?.finalResult) builderResult = o.memory.finalResult
     }
     
-    return { success: true, result: builderResult }
+    return { success: true, result: builderResult, builtWorkflow }
   } catch (err) {
     console.error('[Chat] Builder execution failed:', err)
     return { success: false, error: String(err) }
@@ -283,7 +293,7 @@ export async function chat(sessionId: string | null, message: string): Promise<{
   response: string
   commands: any[]
   commandResults: string[]
-  buildResult?: { success: boolean; result?: string; error?: string }
+  buildResult?: { success: boolean; result?: string; error?: string; builtWorkflow?: { nodes: any[], edges: any[] } }
 }> {
   // Get or create session
   let session: ChatSession

@@ -176,10 +176,20 @@ export default function AIAssistant() {
         response += '\n\n✅ ' + data.commandResults.join('\n✅ ')
       }
       
-      // Add build result info
+      // Add build result info and load built workflow onto canvas
       if (data.buildResult) {
         if (data.buildResult.success) {
           response += '\n\n🔨 Workflow built successfully!'
+          
+          // Load the built workflow onto the canvas
+          if (data.buildResult.builtWorkflow) {
+            const { nodes: builtNodes, edges: builtEdges } = data.buildResult.builtWorkflow
+            if (builtNodes && builtNodes.length > 0) {
+              setNodes(builtNodes)
+              setEdges(builtEdges || [])
+              response += `\n📋 Loaded ${builtNodes.length} nodes onto canvas.`
+            }
+          }
         }
       }
       
