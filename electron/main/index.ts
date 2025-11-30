@@ -144,9 +144,9 @@ ipcMain.handle('workflow:list', async () => {
     const files = fs.readdirSync(WORKFLOWS_DIR).filter(f => f.endsWith('.json'))
     const workflows = files.map(file => {
       const data = JSON.parse(fs.readFileSync(path.join(WORKFLOWS_DIR, file), 'utf-8'))
-      return { id: data.id, name: data.name, updatedAt: data.updatedAt }
-    })
-    return { success: true, data: workflows }
+      return data
+    }).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    return { success: true, workflows }
   } catch (error) {
     return { success: false, error: String(error) }
   }
