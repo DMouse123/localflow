@@ -60,7 +60,7 @@
 - [x] Delete workflows
 - [x] List saved workflows via API
 - [x] Master AI commands: save, load, rename, delete, list
-- [ ] UI for workflow management
+- [x] UI for workflow management (Saved tab in sidebar)
 
 ### Workflow Composability
 - [x] Create workflow execution tools (run_workflow, list_workflows)
