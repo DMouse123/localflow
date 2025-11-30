@@ -53,7 +53,7 @@ export interface ElectronAPI {
   workflow: {
     save: (workflow: unknown) => Promise<{ success: boolean; path?: string; error?: string }>
     load: (id: string) => Promise<{ success: boolean; data?: unknown; error?: string }>
-    list: () => Promise<{ success: boolean; data?: unknown[]; error?: string }>
+    list: () => Promise<{ success: boolean; workflows?: unknown[]; error?: string }>
     delete: (id: string) => Promise<{ success: boolean; error?: string }>
     execute: (workflow: unknown) => Promise<{ success: boolean; outputs?: unknown; logs?: string[]; error?: string }>
   }

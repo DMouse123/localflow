@@ -22,7 +22,7 @@ export default function WorkflowsPanel() {
     setLoading(true)
     setError(null)
     try {
-      const result = await window.api.workflow.list()
+      const result = await window.electron.workflow.list()
       if (result.success) {
         setWorkflows(result.workflows || [])
       } else {
@@ -49,7 +49,7 @@ export default function WorkflowsPanel() {
     if (!confirm(`Delete "${name}"?`)) return
     
     try {
-      const result = await window.api.workflow.delete(id)
+      const result = await window.electron.workflow.delete(id)
       if (result.success) {
         setWorkflows(workflows.filter(w => w.id !== id))
       }
