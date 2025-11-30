@@ -234,7 +234,7 @@ export async function runOrchestrator(
       let response: string
       try {
         response = await LLMManager.orchestratorPrompt(nextPrompt, {
-          maxTokens: 100,
+          maxTokens: 200,
           temperature: 0.1
         })
       } catch (error) {
