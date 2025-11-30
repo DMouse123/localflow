@@ -174,6 +174,20 @@ async function buildWorkflowViaBuilder(request: string): Promise<{
     
     console.log(`[Chat] Building workflow via Builder: "${request.substring(0, 50)}..."`)
     
+    // Wrap user request with explicit step-by-step instructions
+    const explicitRequest = `Build a 3-node workflow. IMPORTANT: Use type=ai-chat (NOT ai-orchestrator).
+
+Steps:
+1. clear_canvas
+2. add_node type=text-input label=Input config_text=Enter text here
+3. add_node type=ai-chat label=Processor config_systemPrompt=You will ${request}. Process the input text.
+4. add_node type=debug label=Output
+5. connect_nodes from_node_id=Input to_node_id=Processor
+6. connect_nodes from_node_id=Processor to_node_id=Output
+7. DONE
+
+Start step 1.`
+    
     // Inject the build request into the workflow's text-input
     const modifiedNodes = workflow.nodes.map((node: any) => {
       if (node.data?.type === 'text-input') {
@@ -181,7 +195,7 @@ async function buildWorkflowViaBuilder(request: string): Promise<{
           ...node,
           data: {
             ...node.data,
-            config: { ...node.data.config, text: request }
+            config: { ...node.data.config, text: explicitRequest }
           }
         }
       }
