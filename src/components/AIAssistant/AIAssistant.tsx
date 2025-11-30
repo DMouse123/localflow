@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, X, Send, Loader2, Sparkles, Zap } from 'lucide-react'
+import { MessageCircle, X, Send, Loader2, Sparkles, Zap, Plus, Trash2, ChevronDown } from 'lucide-react'
 import { useWorkflowStore } from '../../stores/workflowStore'
 import { useLLMStore } from '../../stores/llmStore'
 
@@ -8,80 +8,10 @@ interface Message {
   content: string
 }
 
-// Build dynamic system prompt with full platform knowledge
-function buildSystemPrompt(nodes: any[], edges: any[], templates: any[], plugins: any[]): string {
-  const nodeList = nodes.length > 0
-    ? `Current workflow: ${nodes.map(n => `${n.data.label} (${n.data.type})`).join(' → ')}`
-    : 'Canvas is empty.'
-
-  const templateList = templates.map(t => `- ${t.name}: ${t.description || t.id}`).join('\n')
-  
-  const pluginList = plugins.length > 0
-    ? plugins.map(p => `- ${p.name}: ${p.tools?.map((t: any) => t.id).join(', ') || 'no tools'}`).join('\n')
-    : 'No plugins installed.'
-
-  return `You are the Master AI for LocalFlow, a local AI workflow automation platform.
-
-## Your Capabilities
-You can SEE and CONTROL the entire system:
-- View all available nodes, tools, and plugins
-- Build workflows by adding nodes and connections
-- Run workflows and see results
-- Help users design automation systems
-
-## Available Node Types
-TRIGGERS: trigger (start workflow)
-INPUTS: text-input (static text)
-AI: ai-chat (conversation), ai-transform (modify text), ai-orchestrator (autonomous agent)
-TOOLS: tool-calculator, tool-datetime, tool-generate-id, tool-file-read, tool-file-write, tool-file-list, tool-http, tool-json-query, tool-shell, tool-string-ops
-AI TOOLS: tool-ai-name, tool-ai-color, tool-ai-trait, tool-ai-backstory
-OUTPUT: debug (display results)
-
-## Available Templates
-${templateList}
-
-## Installed Plugins
-${pluginList}
-
-## Current State
-${nodeList}
-
-## Commands You Can Execute
-When user asks you to DO something, respond with a command block:
-
-To add a node:
-\`\`\`command
-{"action": "addNode", "type": "text-input", "label": "My Input", "config": {"text": "Hello"}}
-\`\`\`
-
-To connect nodes:
-\`\`\`command
-{"action": "connect", "from": "node_1", "to": "node_2"}
-\`\`\`
-
-To run workflow:
-\`\`\`command
-{"action": "run"}
-\`\`\`
-
-To load template:
-\`\`\`command
-{"action": "loadTemplate", "id": "ai-character-builder"}
-\`\`\`
-
-To clear canvas:
-\`\`\`command
-{"action": "clear"}
-\`\`\`
-
-## Guidelines
-- Be helpful and concise
-- When user describes what they want, suggest a workflow design
-- When user says "build it" or "create it", use command blocks to actually build
-- Explain what you're doing as you go
-- If something isn't possible, explain why and suggest alternatives
-
-You have full control. Help users build amazing automations!`
+interface ChatSession {
+  id: string
+  messageCount: number
+  createdAt: number
 }
 
 export default function AIAssistant() {
@@ -91,21 +21,17 @@ export default function AIAssistant() {
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [templates, setTemplates] = useState<any[]>([])
-  const [plugins, setPlugins] = useState<any[]>([])
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessions, setSessions] = useState<ChatSession[]>([])
+  const [showSessions, setShowSessions] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
   const { nodes, edges, setNodes, setEdges } = useWorkflowStore()
   const { loadedModelId } = useLLMStore()
 
-  // Load templates and plugins on mount
+  // Load sessions on mount
   useEffect(() => {
-    fetch('http://localhost:9998/templates')
-      .then(r => r.json())
-      .then(data => setTemplates(data.templates || []))
-      .catch(() => {})
-    
-    // TODO: Add plugin list endpoint
+    loadSessions()
   }, [])
 
   // Auto-scroll to bottom
@@ -113,92 +39,100 @@ export default function AIAssistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Execute commands from AI response
-  const executeCommand = async (command: any) => {
-    switch (command.action) {
-      case 'addNode': {
-        const newNode = {
-          id: `node_${Date.now()}`,
-          type: 'custom',
-          position: { x: 200 + nodes.length * 200, y: 200 },
-          data: {
-            label: command.label || command.type,
-            type: command.type,
-            config: command.config || {}
-          }
-        }
-        setNodes([...nodes, newNode])
-        return `Added ${command.label || command.type} node`
-      }
-      
-      case 'connect': {
-        const newEdge = {
-          id: `edge_${Date.now()}`,
-          source: command.from,
-          target: command.to,
-          sourceHandle: command.sourceHandle,
-          targetHandle: command.targetHandle
-        }
-        setEdges([...edges, newEdge])
-        return `Connected ${command.from} → ${command.to}`
-      }
-      
-      case 'run': {
-        document.querySelector<HTMLButtonElement>('[data-testid="run-button"]')?.click()
-        return 'Running workflow...'
-      }
-      
-      case 'loadTemplate': {
-        const template = templates.find(t => t.id === command.id)
-        if (template) {
-          // Fetch and load template via API
-          try {
-            const response = await fetch(`http://localhost:9998/templates/${command.id}`)
-            const data = await response.json()
-            // Template loading would need the full node/edge data
-            return `Loaded template: ${template.name}`
-          } catch {
-            return `Failed to load template: ${command.id}`
-          }
-        }
-        return `Template not found: ${command.id}`
-      }
-      
-      case 'clear': {
-        setNodes([])
-        setEdges([])
-        return 'Canvas cleared'
-      }
-      
-      default:
-        return `Unknown action: ${command.action}`
+  const loadSessions = async () => {
+    try {
+      const res = await fetch('http://localhost:9998/chat/sessions')
+      const data = await res.json()
+      setSessions(data.sessions || [])
+    } catch (e) {
+      console.error('Failed to load sessions:', e)
     }
   }
 
-  // Parse and execute commands from response
-  const processResponse = async (response: string): Promise<string> => {
-    const commandRegex = /```command\n([\s\S]*?)\n```/g
-    let match
-    let processedResponse = response
-    const results: string[] = []
+  const startNewChat = () => {
+    setSessionId(null)
+    setMessages([
+      { role: 'assistant', content: "🧠 I'm your Master AI. I can see the entire LocalFlow system and help you design, build, and run workflows.\n\nTry:\n• \"What can you do?\"\n• \"Show me the templates\"\n• \"Build a character generator\"\n• \"Create a workflow that summarizes text\"" }
+    ])
+    setShowSessions(false)
+  }
 
-    while ((match = commandRegex.exec(response)) !== null) {
-      try {
-        const command = JSON.parse(match[1])
-        const result = await executeCommand(command)
-        results.push(result)
-      } catch (e) {
-        results.push(`Error: ${e}`)
+  const loadSession = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:9998/chat/${id}`)
+      const data = await res.json()
+      if (data.messages) {
+        setSessionId(id)
+        setMessages(data.messages.map((m: any) => ({
+          role: m.role,
+          content: m.content
+        })))
+      }
+    } catch (e) {
+      console.error('Failed to load session:', e)
+    }
+    setShowSessions(false)
+  }
+
+  const deleteSession = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await fetch(`http://localhost:9998/chat/${id}`, { method: 'DELETE' })
+      setSessions(sessions.filter(s => s.id !== id))
+      if (sessionId === id) {
+        startNewChat()
+      }
+    } catch (e) {
+      console.error('Failed to delete session:', e)
+    }
+  }
+
+  // Execute commands from AI response
+  const executeCommands = async (commands: any[]): Promise<string[]> => {
+    const results: string[] = []
+    for (const command of commands) {
+      switch (command.action) {
+        case 'addNode': {
+          const newNode = {
+            id: `node_${Date.now()}`,
+            type: 'custom',
+            position: { x: 200 + nodes.length * 200, y: 200 },
+            data: {
+              label: command.label || command.type,
+              type: command.type,
+              config: command.config || {}
+            }
+          }
+          setNodes([...nodes, newNode])
+          results.push(`Added ${command.label || command.type} node`)
+          break
+        }
+        case 'connect': {
+          const newEdge = {
+            id: `edge_${Date.now()}`,
+            source: command.from,
+            target: command.to
+          }
+          setEdges([...edges, newEdge])
+          results.push(`Connected ${command.from} → ${command.to}`)
+          break
+        }
+        case 'run': {
+          document.querySelector<HTMLButtonElement>('[data-testid="run-button"]')?.click()
+          results.push('Running workflow...')
+          break
+        }
+        case 'clear': {
+          setNodes([])
+          setEdges([])
+          results.push('Canvas cleared')
+          break
+        }
+        default:
+          results.push(`${command.action}`)
       }
     }
-
-    if (results.length > 0) {
-      // Remove command blocks and add results
-      processedResponse = response.replace(/```command\n[\s\S]*?\n```/g, '').trim()
-      processedResponse += '\n\n✅ ' + results.join('\n✅ ')
-    }
-
-    return processedResponse
+    return results
   }
 
   const handleSend = async () => {
@@ -210,28 +144,54 @@ export default function AIAssistant() {
     setIsLoading(true)
 
     try {
-      const systemPrompt = buildSystemPrompt(nodes, edges, templates, plugins)
-
-      const result = await window.electron.llm.generate(
-        userMessage,
-        { systemPrompt, maxTokens: 500 }
-      )
+      // Use REST API for chat
+      const res = await fetch('http://localhost:9998/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          message: userMessage
+        })
+      })
       
-      if (result.success && result.response) {
-        const processedResponse = await processResponse(result.response)
-        setMessages(prev => [...prev, { role: 'assistant', content: processedResponse }])
-      } else {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: loadedModelId 
-            ? "Sorry, I had trouble responding. Please try again."
-            : "⚠️ No AI model loaded. Go to Models tab and load a model first!"
-        }])
+      const data = await res.json()
+      
+      if (data.sessionId) {
+        setSessionId(data.sessionId)
       }
+      
+      let response = data.response || 'No response'
+      
+      // Execute any commands and append results
+      if (data.commands && data.commands.length > 0) {
+        const results = await executeCommands(data.commands)
+        if (results.length > 0) {
+          response = response.replace(/```command\n[\s\S]*?\n```/g, '').trim()
+          response += '\n\n✅ ' + results.join('\n✅ ')
+        }
+      }
+      
+      // Add command results from server
+      if (data.commandResults && data.commandResults.length > 0) {
+        response += '\n\n✅ ' + data.commandResults.join('\n✅ ')
+      }
+      
+      // Add build result info
+      if (data.buildResult) {
+        if (data.buildResult.success) {
+          response += '\n\n🔨 Workflow built successfully!'
+        }
+      }
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: response }])
+      
+      // Refresh sessions list
+      loadSessions()
+      
     } catch (error) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "Sorry, something went wrong. Make sure a model is loaded."
+        content: "Sorry, something went wrong. Make sure LocalFlow backend is running."
       }])
     } finally {
       setIsLoading(false)
@@ -243,6 +203,12 @@ export default function AIAssistant() {
       e.preventDefault()
       handleSend()
     }
+  }
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    })
   }
 
   return (
@@ -271,10 +237,72 @@ export default function AIAssistant() {
                         flex flex-col overflow-hidden z-50 border border-slate-200">
           {/* Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white">
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5" />
-              <span className="font-semibold">Master AI</span>
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Full Control</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                <span className="font-semibold">Master AI</span>
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Full Control</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {/* New Chat Button */}
+                <button
+                  onClick={startNewChat}
+                  className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                  title="New Chat"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                {/* Sessions Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSessions(!showSessions)}
+                    className="p-1.5 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-1"
+                    title="Chat History"
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showSessions ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {/* Sessions Dropdown Menu */}
+                  {showSessions && (
+                    <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
+                      <div className="px-3 py-2 text-xs font-medium text-slate-500 border-b border-slate-100">
+                        Recent Chats ({sessions.length})
+                      </div>
+                      {sessions.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-slate-400 text-center">
+                          No saved chats
+                        </div>
+                      ) : (
+                        <div className="max-h-48 overflow-y-auto">
+                          {sessions.map(s => (
+                            <div
+                              key={s.id}
+                              onClick={() => loadSession(s.id)}
+                              className={`px-3 py-2 flex items-center justify-between hover:bg-slate-50 cursor-pointer group
+                                ${sessionId === s.id ? 'bg-purple-50' : ''}`}
+                            >
+                              <div>
+                                <div className="text-sm text-slate-700">
+                                  {s.messageCount} messages
+                                </div>
+                                <div className="text-xs text-slate-400">
+                                  {formatDate(s.createdAt)}
+                                </div>
+                              </div>
+                              <button
+                                onClick={(e) => deleteSession(s.id, e)}
+                                className="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <p className="text-xs text-purple-100 mt-0.5">I can see, build, and run your workflows</p>
           </div>
