@@ -1,11 +1,15 @@
 /**
  * Chat Session Manager
  * Manages Master AI chat sessions with memory
+ * 
+ * NEW: Uses Workflow Builder for building workflows instead of direct JSON output
  */
 
 import LLMManager from './llm/manager'
 import { listTemplates } from './templates'
 import { getAllPluginTools } from './plugins/loader'
+import { listWorkflows, getWorkflow } from './workflowStorage'
+import { executeWorkflow } from './executor/engine'
 
 // Simple ID generator
 function generateId(): string {
@@ -31,8 +35,31 @@ const sessions: Map<string, ChatSession> = new Map()
 // Session timeout (30 minutes)
 const SESSION_TIMEOUT = 30 * 60 * 1000
 
+// Workflow Builder workflow ID (find the best one)
+let workflowBuilderId: string | null = null
+
+async function getWorkflowBuilderId(): Promise<string | null> {
+  if (workflowBuilderId) return workflowBuilderId
+  
+  try {
+    const workflows = listWorkflows()
+    // Look for Workflow Builder (prefer v3, v4, v5 etc)
+    const builder = workflows.find(w => 
+      w.name.toLowerCase().includes('workflow builder')
+    )
+    if (builder) {
+      workflowBuilderId = builder.id
+      console.log(`[Chat] Found Workflow Builder: ${builder.name} (${builder.id})`)
+    }
+    return workflowBuilderId
+  } catch (e) {
+    console.error('[Chat] Failed to find Workflow Builder:', e)
+    return null
+  }
+}
+
 /**
- * Build the Master AI system prompt with full platform knowledge
+ * Build the Master AI system prompt - now simpler, focused on dispatching
  */
 export function buildMasterAIPrompt(): string {
   const templates = listTemplates()
@@ -46,78 +73,25 @@ export function buildMasterAIPrompt(): string {
 
   return `You are the Master AI for LocalFlow, a local AI workflow automation platform.
 
-## Your Capabilities
-You can SEE and CONTROL the entire system:
-- View all available nodes, tools, and plugins
-- Build workflows by adding nodes and connections
-- Run workflows and see results
-- Help users design automation systems
-
-## Available Node Types
-TRIGGERS: trigger (start workflow)
-INPUTS: text-input (static text - use config.text to set the content)
-AI: ai-chat (conversation), ai-transform (modify text), ai-orchestrator (autonomous agent with tools)
-TOOLS: tool-calculator, tool-datetime, tool-generate-id, tool-file-read, tool-file-write, tool-file-list, tool-http, tool-json-query, tool-shell, tool-string-ops
-AI TOOLS: tool-ai-name, tool-ai-color, tool-ai-trait, tool-ai-backstory
-OUTPUT: debug (display results)
+## Your Role
+You help users by:
+1. Answering questions about LocalFlow
+2. Suggesting workflow designs
+3. Building workflows when asked (the system handles this automatically)
+4. Loading templates and saved workflows
+5. Running workflows
 
 ## Available Templates
 ${templateList}
 
-## Plugin Tools
+## Plugin Tools Available
 ${pluginList}
 
-## IMPORTANT: How to Build Workflows
+## Commands You Can Use
 
-A working workflow MUST have this structure:
-1. text-input node (provides the task/prompt)
-2. ai-chat OR ai-orchestrator node (does the AI work)
-3. debug node (shows the output)
-
-All nodes MUST be connected in order: text-input → ai-chat → debug
-
-## Commands - ONE PER BLOCK
-
-Add a node (returns node_1, node_2, etc):
-\`\`\`command
-{"action": "addNode", "type": "text-input", "label": "Task", "config": {"text": "Your prompt here"}}
-\`\`\`
-
-\`\`\`command
-{"action": "addNode", "type": "ai-chat", "label": "AI", "config": {"systemPrompt": "You are helpful"}}
-\`\`\`
-
-\`\`\`command
-{"action": "addNode", "type": "debug", "label": "Output"}
-\`\`\`
-
-Connect nodes (use label names):
-\`\`\`command
-{"action": "connect", "from": "Task", "to": "AI"}
-\`\`\`
-
-\`\`\`command
-{"action": "connect", "from": "AI", "to": "Output"}
-\`\`\`
-
-Run the workflow:
-\`\`\`command
-{"action": "run"}
-\`\`\`
-
-Clear canvas:
-\`\`\`command
-{"action": "clear"}
-\`\`\`
-
-Load template:
+To load a template:
 \`\`\`command
 {"action": "loadTemplate", "id": "simple-qa"}
-\`\`\`
-
-Save workflow:
-\`\`\`command
-{"action": "saveWorkflow", "name": "My Workflow"}
 \`\`\`
 
 To load a saved workflow:
@@ -130,24 +104,110 @@ To list saved workflows:
 {"action": "listWorkflows"}
 \`\`\`
 
-To delete a saved workflow:
+To run the current workflow:
 \`\`\`command
-{"action": "deleteWorkflow", "id": "wf_123456"}
+{"action": "run"}
 \`\`\`
 
-To rename a workflow:
+To clear the canvas:
 \`\`\`command
-{"action": "renameWorkflow", "id": "wf_123456", "name": "New Name"}
+{"action": "clear"}
 \`\`\`
+
+## IMPORTANT: Building Workflows
+When user asks to BUILD or CREATE a workflow, just describe what they want clearly.
+The system will automatically use the Workflow Builder to construct it.
+You don't need to output node commands - just acknowledge and describe the workflow.
 
 ## Guidelines
 - Be helpful and concise
-- When user describes what they want, suggest a workflow design
-- When user says "build it" or "create it", use command blocks to actually build
-- Explain what you're doing as you go
-- If something isn't possible, explain why and suggest alternatives
+- When user wants to build something, confirm what they want and let the builder handle it
+- Suggest templates when appropriate
+- Help users understand what's possible
 
 You have full control. Help users build amazing automations!`
+}
+
+/**
+ * Detect if user wants to build a workflow
+ */
+function isBuildRequest(message: string): boolean {
+  const lower = message.toLowerCase()
+  const buildKeywords = [
+    'build', 'create', 'make', 'generate', 'design',
+    'new workflow', 'workflow that', 'workflow to',
+    'set up', 'setup', 'construct'
+  ]
+  const workflowKeywords = ['workflow', 'flow', 'automation', 'pipeline']
+  
+  // Check for explicit build + workflow intent
+  const hasBuildIntent = buildKeywords.some(k => lower.includes(k))
+  const hasWorkflowContext = workflowKeywords.some(k => lower.includes(k)) || 
+    lower.includes('maker') || lower.includes('generator')
+  
+  return hasBuildIntent && hasWorkflowContext
+}
+
+/**
+ * Build a workflow using the Workflow Builder workflow
+ */
+async function buildWorkflowViaBuilder(request: string): Promise<{
+  success: boolean
+  result?: string
+  error?: string
+}> {
+  const builderId = await getWorkflowBuilderId()
+  
+  if (!builderId) {
+    return { 
+      success: false, 
+      error: 'Workflow Builder not found. Please ensure a "Workflow Builder" workflow is saved.' 
+    }
+  }
+  
+  try {
+    const workflow = getWorkflow(builderId)
+    if (!workflow) {
+      return { success: false, error: 'Workflow Builder workflow not found' }
+    }
+    
+    console.log(`[Chat] Building workflow via Builder: "${request.substring(0, 50)}..."`)
+    
+    // Inject the build request into the workflow's text-input
+    const modifiedNodes = workflow.nodes.map((node: any) => {
+      if (node.data?.type === 'text-input') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            config: { ...node.data.config, text: request }
+          }
+        }
+      }
+      return node
+    })
+    
+    // Execute the builder workflow
+    const result = await executeWorkflow({
+      ...workflow,
+      nodes: modifiedNodes
+    }, null)
+    
+    // Extract result from orchestrator output
+    const outputs = result.outputs || {}
+    let builderResult = 'Workflow built'
+    
+    for (const [nodeId, output] of Object.entries(outputs)) {
+      const o = output as any
+      if (o?.result) builderResult = o.result
+      if (o?.memory?.finalResult) builderResult = o.memory.finalResult
+    }
+    
+    return { success: true, result: builderResult }
+  } catch (err) {
+    console.error('[Chat] Builder execution failed:', err)
+    return { success: false, error: String(err) }
+  }
 }
 
 /**
@@ -208,12 +268,23 @@ export function deleteSession(id: string): boolean {
 }
 
 /**
+ * Get session history
+ */
+export function getHistory(id: string): Message[] | null {
+  const session = sessions.get(id)
+  if (!session) return null
+  return session.messages
+}
+
+/**
  * Send a message to the Master AI
  */
 export async function chat(sessionId: string | null, message: string): Promise<{
   sessionId: string
   response: string
   commands: any[]
+  commandResults: string[]
+  buildResult?: { success: boolean; result?: string; error?: string }
 }> {
   // Get or create session
   let session: ChatSession
@@ -230,7 +301,35 @@ export async function chat(sessionId: string | null, message: string): Promise<{
     timestamp: Date.now()
   })
 
-  // Build conversation history for LLM
+  const commands: any[] = []
+  const commandResults: string[] = []
+  let buildResult: { success: boolean; result?: string; error?: string } | undefined
+  
+  // Check if this is a build request - dispatch to Workflow Builder
+  if (isBuildRequest(message)) {
+    console.log(`[Chat] Detected build request, dispatching to Workflow Builder`)
+    buildResult = await buildWorkflowViaBuilder(message)
+    
+    const response = buildResult.success 
+      ? `I've built your workflow!\n\n${buildResult.result}`
+      : `Sorry, I couldn't build the workflow: ${buildResult.error}`
+    
+    session.messages.push({
+      role: 'assistant',
+      content: response,
+      timestamp: Date.now()
+    })
+    
+    return {
+      sessionId: session.id,
+      response,
+      commands,
+      commandResults,
+      buildResult
+    }
+  }
+
+  // Regular chat - use LLM
   const systemPrompt = buildMasterAIPrompt()
   const conversationHistory = session.messages
     .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
@@ -238,10 +337,8 @@ export async function chat(sessionId: string | null, message: string): Promise<{
 
   console.log(`[Chat] Sending to LLM: ${conversationHistory.substring(0, 100)}...`)
 
-  // Generate response
   let response: string
   try {
-    // generateSync returns a string directly, not an object
     response = await LLMManager.generateSync(
       conversationHistory,
       { systemPrompt, maxTokens: 600 }
@@ -252,125 +349,58 @@ export async function chat(sessionId: string | null, message: string): Promise<{
     response = `Error: ${err}`
   }
   
-  // Parse commands from response - look for command blocks OR json blocks with action field
-  const commands: any[] = []
-  
-  // Helper to extract commands from parsed JSON
+  // Parse commands from response
   const extractCommands = (parsed: any) => {
     if (Array.isArray(parsed)) {
-      // Array of commands
       for (const item of parsed) {
         if (item && item.action) commands.push(item)
       }
     } else if (parsed && parsed.action) {
-      // Single command
       commands.push(parsed)
     }
   }
   
-  // Try ```command blocks first
+  // Try ```command blocks
   const commandRegex = /```command\n([\s\S]*?)\n```/g
   let match
   while ((match = commandRegex.exec(response)) !== null) {
     const content = match[1].trim()
-    
-    // Try parsing as single JSON object
     try {
       const parsed = JSON.parse(content)
       extractCommands(parsed)
-      continue
-    } catch (e) {}
-    
-    // Try parsing as JSON array
-    try {
-      const parsed = JSON.parse('[' + content + ']')
-      extractCommands(parsed)
-      continue
-    } catch (e) {}
-    
-    // Try parsing multiple JSON objects separated by newlines
-    const lines = content.split('\n').filter(line => line.trim().startsWith('{'))
-    for (const line of lines) {
-      try {
-        const parsed = JSON.parse(line.trim())
-        extractCommands(parsed)
-      } catch (e) {}
-    }
-    
-    // Try wrapping with commas
-    try {
-      const wrapped = '[' + content.replace(/}\s*\n\s*{/g, '},{').replace(/}\s*,?\s*{/g, '},{') + ']'
-      const parsed = JSON.parse(wrapped)
-      extractCommands(parsed)
     } catch (e) {
-      console.error('[Chat] Failed to parse command block:', content.substring(0, 100))
+      // Try line by line
+      const lines = content.split('\n').filter(line => line.trim().startsWith('{'))
+      for (const line of lines) {
+        try {
+          extractCommands(JSON.parse(line.trim()))
+        } catch {}
+      }
     }
   }
   
-  // Also try ```json blocks that contain action field
+  // Try ```json blocks
   const jsonRegex = /```json\n([\s\S]*?)\n```/g
   while ((match = jsonRegex.exec(response)) !== null) {
-    const content = match[1].trim()
-    
     try {
-      const parsed = JSON.parse(content)
-      extractCommands(parsed)
-      continue
-    } catch (e) {}
-    
-    // Try parsing multiple JSON objects separated by newlines
-    const lines = content.split('\n').filter(line => line.trim().startsWith('{'))
-    for (const line of lines) {
+      extractCommands(JSON.parse(match[1].trim()))
+    } catch {}
+  }
+  
+  // Execute any commands found
+  if (commands.length > 0) {
+    const { executeCommand } = require('./commandExecutor')
+    for (const cmd of commands) {
       try {
-        const parsed = JSON.parse(line.trim())
-        extractCommands(parsed)
-      } catch (e) {}
-    }
-  }
-  
-  // Also try bare ``` blocks
-  const bareRegex = /```\n([\s\S]*?)\n```/g
-  while ((match = bareRegex.exec(response)) !== null) {
-    try {
-      const parsed = JSON.parse(match[1])
-      extractCommands(parsed)
-    } catch (e) {
-      try {
-        const wrapped = '[' + match[1].replace(/}\s*,?\s*{/g, '},{') + ']'
-        const parsed = JSON.parse(wrapped)
-        extractCommands(parsed)
-      } catch (e2) {
-        // Not valid, ignore
+        const result = await executeCommand(cmd, session.id)
+        commandResults.push(result)
+      } catch (err) {
+        commandResults.push(`Error: ${err}`)
       }
-    }
-  }
-  
-  // Also try inline `{...}` with action field (single backticks)
-  const inlineRegex = /`(\{"action":[^`]+\})`/g
-  while ((match = inlineRegex.exec(response)) !== null) {
-    try {
-      const parsed = JSON.parse(match[1])
-      extractCommands(parsed)
-    } catch (e) {
-      // Not valid, ignore
-    }
-  }
-  
-  // Last resort: find any JSON object with "action" field in the text
-  const looseRegex = /\{"action"\s*:\s*"[^"]+"\s*[^}]*\}/g
-  while ((match = looseRegex.exec(response)) !== null) {
-    try {
-      const parsed = JSON.parse(match[0])
-      // Avoid duplicates
-      if (!commands.some(c => JSON.stringify(c) === JSON.stringify(parsed))) {
-        extractCommands(parsed)
-      }
-    } catch (e) {
-      // Not valid, ignore
     }
   }
 
-  // Add assistant message
+  // Add response to session
   session.messages.push({
     role: 'assistant',
     content: response,
@@ -380,24 +410,8 @@ export async function chat(sessionId: string | null, message: string): Promise<{
   return {
     sessionId: session.id,
     response,
-    commands
+    commands,
+    commandResults,
+    buildResult
   }
-}
-
-/**
- * Get chat history for a session
- */
-export function getHistory(sessionId: string): Message[] | null {
-  const session = getSession(sessionId)
-  return session ? session.messages : null
-}
-
-export default {
-  createSession,
-  getSession,
-  listSessions,
-  deleteSession,
-  chat,
-  getHistory,
-  buildMasterAIPrompt
 }
