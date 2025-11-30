@@ -138,12 +138,11 @@ function isBuildRequest(message: string): boolean {
     'new workflow', 'workflow that', 'workflow to',
     'set up', 'setup', 'construct'
   ]
-  const workflowKeywords = ['workflow', 'flow', 'automation', 'pipeline']
+  const workflowKeywords = ['workflow', 'workflo', 'flow', 'automation', 'pipeline', 'translator', 'generator', 'maker', 'converter']
   
   // Check for explicit build + workflow intent
   const hasBuildIntent = buildKeywords.some(k => lower.includes(k))
-  const hasWorkflowContext = workflowKeywords.some(k => lower.includes(k)) || 
-    lower.includes('maker') || lower.includes('generator')
+  const hasWorkflowContext = workflowKeywords.some(k => lower.includes(k))
   
   return hasBuildIntent && hasWorkflowContext
 }
